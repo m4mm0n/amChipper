@@ -2,9 +2,9 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
-## v0.1.0.0-AMC20260503.1 - 03.05.2026
+## v0.2.0.0-AMC20260503.1 - 03.05.2026
 
-### Live NSF Streaming and Release Refresh
+### Live NSF Streaming, Advanced DAW Settings, and 0.2 Release
 
 - Added a bounded live chip-stream renderer for NSF sources so full-song NSF playback no longer has to pre-render a WAV cache or fall back to the rough editable tracker trace.
 - Added `ChipStreamPlayer` to the audio engine and routed the WPF wave provider through it before module/audio-file/sequencer playback when a live chip stream is active.
@@ -15,8 +15,11 @@ This changelog covers the implementation work performed from 30.04.2026 through 
 - Updated `nsf-batch` and `chip-batch` diagnostics so NSF validation uses the same streaming path as app playback.
 - Added `NsfStreamingRendererProducesBoundedAudibleChunks` to guard against stream chunks going silent or taking too long to render.
 - Validated the streaming path against 250 local NSF files for 2 seconds each; all sampled files produced audible output and no failures.
-- Bumped the app informational version to `v0.1.0.0-AMC20260503.1`.
-- Bumped `amChipper.SidPlayer.dll` and `amChipper.NsfPlayer.dll` to `v0.1.8.0`.
+- Expanded the Settings rack into a broader FL Studio-style control console with MIDI input/output, sync, audio mixer behavior, undo/history, startup, autosave, backup, external-tool, scaling, animation, color-map, project-template, and project startup controls.
+- Added persistence for the new advanced DAW settings in `settings.json`, including browser search folders, MIDI sync settings, audio priority/resampling preferences, theme-engine preferences, and project defaults.
+- Kept the existing instrument lab controls intact while making the main Settings tab catch up to the more advanced instrument/envelope/filter/LFO/polyphony surface already present in the side rack.
+- Bumped the app informational version to `v0.2.0.0-AMC20260503.1`.
+- Bumped `amChipper.SidPlayer.dll` and `amChipper.NsfPlayer.dll` to `v0.2.0.0`.
 - Rebuilt `Ready2Release`, regenerated language packs, smoke-tested the published app executable, pushed the source update, and published the matching GitHub release asset.
 
 ## v0.1.0.0-AMC20260502.10 - 02.05.2026

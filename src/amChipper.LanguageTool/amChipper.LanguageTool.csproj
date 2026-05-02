@@ -7,10 +7,10 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>amChipper.LanguageTool</RootNamespace>
     <AssemblyName>amChipper.LanguageTool</AssemblyName>
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
-    <InformationalVersion>v0.1.0.0-AMC20260503.1</InformationalVersion>
+    <Version>0.2.0</Version>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
+    <InformationalVersion>v0.2.0.0-AMC20260503.1</InformationalVersion>
     <Platforms>x64</Platforms>
   </PropertyGroup>
 

@@ -909,6 +909,90 @@
 
                 <Border Style="{StaticResource SettingsPanel}">
                   <StackPanel>
+                    <TextBlock Text="MIDI input / output" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Output device" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding MidiOutputDeviceOptions}"
+                                SelectedItem="{Binding MidiOutputDevice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Input mode" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding MidiInputModeOptions}"
+                                SelectedItem="{Binding MidiInputMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Sync type" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding MidiSynchronizationOptions}"
+                                SelectedItem="{Binding MidiSynchronization, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <CheckBox Content="Send master sync" IsChecked="{Binding MidiMasterSync, Mode=TwoWay}"/>
+                    <CheckBox Content="Send all notes off on stop" IsChecked="{Binding MidiSendAllNotesOff, Mode=TwoWay}"/>
+                    <CheckBox Content="Auto accept detected controller" IsChecked="{Binding MidiAutoAcceptController, Mode=TwoWay}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="54"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Omni preview channel" Style="{StaticResource SettingLabel}"/>
+                      <Slider Grid.Column="1" Minimum="1" Maximum="16" TickFrequency="1" IsSnapToTickEnabled="True"
+                              Value="{Binding MidiOmniPreviewChannel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding MidiOmniPreviewChannel}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="54"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Master sync offset" Style="{StaticResource SettingLabel}"/>
+                      <Slider Grid.Column="1" Minimum="-500" Maximum="500" TickFrequency="5" IsSnapToTickEnabled="True"
+                              Value="{Binding MidiMasterSyncOffsetMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding MidiMasterSyncOffsetMs, StringFormat={}{0}ms}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="General / system" Style="{StaticResource SectionTitle}"/>
+                    <DockPanel Margin="0,0,0,8">
+                      <TextBlock Text="Undo history" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding GeneralUndoLevels}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="10" Maximum="1000" TickFrequency="10" IsSnapToTickEnabled="True"
+                              Value="{Binding GeneralUndoLevels, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,8">
+                      <TextBlock Text="Data-size warning" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding GeneralProjectWarningMb, StringFormat={}{0}MB}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="10" Maximum="1000" TickFrequency="10" IsSnapToTickEnabled="True"
+                              Value="{Binding GeneralProjectWarningMb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                    <CheckBox Content="Undo knob and slider tweaks" IsChecked="{Binding GeneralUndoKnobTweaks, Mode=TwoWay}"/>
+                    <CheckBox Content="Show recent changes at the top" IsChecked="{Binding GeneralShowRecentChanges, Mode=TwoWay}"/>
+                    <CheckBox Content="Silent startup" IsChecked="{Binding GeneralSilentStartup, Mode=TwoWay}"/>
+                    <CheckBox Content="Restore previous state after launch" IsChecked="{Binding GeneralRestorePreviousState, Mode=TwoWay}"/>
+                    <CheckBox Content="Prefer high-performance power behavior" IsChecked="{Binding GeneralHighPerformancePowerPlan, Mode=TwoWay}"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
                     <TextBlock Text="{Binding [Transport]}" Style="{StaticResource SectionTitle}"/>
                     <CheckBox Content="{Binding [ResetStopRestart]}"
                               IsChecked="{Binding PreferRestartOnStop, Mode=TwoWay}"
@@ -989,6 +1073,165 @@
               </StackPanel>
 
               <StackPanel Grid.Column="2">
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="Audio devices / mixer advanced" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Priority" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AudioPriorityOptions}"
+                                SelectedItem="{Binding AudioPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Resampling quality" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AudioResamplingQualityOptions}"
+                                SelectedItem="{Binding AudioResamplingQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Playback tracking" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AudioPlaybackTrackingOptions}"
+                                SelectedItem="{Binding AudioPlaybackTracking, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <CheckBox Content="Auto-close idle audio device" IsChecked="{Binding AudioAutoClose, Mode=TwoWay}"/>
+                    <CheckBox Content="Safe overload protection" IsChecked="{Binding AudioSafeOverloads, Mode=TwoWay}"/>
+                    <CheckBox Content="Reset generators on transport" IsChecked="{Binding AudioResetPluginsOnTransport, Mode=TwoWay}"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="Files, backups and external tools" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Autosave" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AutosaveModeOptions}"
+                                SelectedItem="{Binding FileAutosaveMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Backup location" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding BackupLocationOptions}"
+                                SelectedItem="{Binding FileBackupLocationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="User data folder" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Grid.Column="1" Text="{Binding UserDataFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <TextBlock Text="Browser search folders" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
+                    <ListBox ItemsSource="{Binding BrowserSearchFolders}" MinHeight="70" MaxHeight="110" Margin="0,4,0,8"/>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Script editor" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Grid.Column="1" Text="{Binding ExternalToolPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="Theme engine" Style="{StaticResource SectionTitle}"/>
+                    <UniformGrid Columns="2">
+                      <Grid Margin="0,0,8,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="110"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="GUI scaling" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemeGuiScaling, Mode=TwoWay}"/>
+                      </Grid>
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="110"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Pop-ups" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemePopupScaling, Mode=TwoWay}"/>
+                      </Grid>
+                      <Grid Margin="0,0,8,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="110"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Toolbars" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemeToolbarScaling, Mode=TwoWay}"/>
+                      </Grid>
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="110"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Color map" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeColorMapOptions}" SelectedItem="{Binding ThemeColorMap, Mode=TwoWay}"/>
+                      </Grid>
+                    </UniformGrid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Animations" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AnimationModeOptions}"
+                                SelectedItem="{Binding ThemeAnimationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <CheckBox Content="Transparent windows" IsChecked="{Binding ThemeTransparentWindows, Mode=TwoWay}"/>
+                    <CheckBox Content="High visibility editor lines" IsChecked="{Binding ThemeHighVisibility, Mode=TwoWay}"/>
+                    <CheckBox Content="Small scrollbars in editors" IsChecked="{Binding ThemeSmallScrollbars, Mode=TwoWay}"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="Project defaults" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Default template" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding ProjectTemplateOptions}"
+                                SelectedItem="{Binding ProjectDefaultTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Startup project" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding StartupProjectOptions}"
+                                SelectedItem="{Binding ProjectStartupProject, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <CheckBox Content="Auto-name channels" IsChecked="{Binding ProjectAutoNameChannels, Mode=TwoWay}"/>
+                    <CheckBox Content="Auto-select linked modules" IsChecked="{Binding ProjectAutoSelectLinkedModules, Mode=TwoWay}"/>
+                    <CheckBox Content="Auto-zoom piano roll to active notes" IsChecked="{Binding ProjectAutoZoomPianoRoll, Mode=TwoWay}"/>
+                    <CheckBox Content="Create automation clips at playback position" IsChecked="{Binding ProjectCreateAutomationAtPlaybackPosition, Mode=TwoWay}"/>
+                    <CheckBox Content="Select first channel with notes on pattern change" IsChecked="{Binding ProjectSelectFirstNoteChannel, Mode=TwoWay}"/>
+                  </StackPanel>
+                </Border>
+
                 <Border Style="{StaticResource SettingsPanel}">
                   <StackPanel>
                     <TextBlock Text="{Binding [TabPianoRoll]}" Style="{StaticResource SectionTitle}"/>

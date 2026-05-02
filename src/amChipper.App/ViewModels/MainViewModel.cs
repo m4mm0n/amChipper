@@ -105,6 +105,67 @@ public sealed class MainViewModel : BaseViewModel
     /// Stores or exposes SpectrumAnalyzerModes.
     /// </summary>
     public ObservableCollection<string> SpectrumAnalyzerModes { get; } = ["Studio Analyzer", "Compact Bars", "Peak Focus"];
+    /// <summary>
+    /// Stores or exposes MidiOutputDeviceOptions.
+    /// </summary>
+    public ObservableCollection<string> MidiOutputDeviceOptions { get; } = ["Microsoft GS Wavetable Synth", "LoopMIDI / virtual port", "Disabled"];
+    /// <summary>
+    /// Stores or exposes MidiInputModeOptions.
+    /// </summary>
+    public ObservableCollection<string> MidiInputModeOptions { get; } = ["Disabled", "Auto-detect", "Controller learn", "Typing keyboard bridge"];
+    /// <summary>
+    /// Stores or exposes MidiSynchronizationOptions.
+    /// </summary>
+    public ObservableCollection<string> MidiSynchronizationOptions { get; } = ["MIDI clock", "MTC quarter-frame", "Internal transport"];
+    /// <summary>
+    /// Stores or exposes AudioPriorityOptions.
+    /// </summary>
+    public ObservableCollection<string> AudioPriorityOptions { get; } = ["Normal", "High", "Highest", "Realtime preview"];
+    /// <summary>
+    /// Stores or exposes AudioResamplingQualityOptions.
+    /// </summary>
+    public ObservableCollection<string> AudioResamplingQualityOptions { get; } = ["Linear", "Cubic", "12-point sinc", "24-point sinc"];
+    /// <summary>
+    /// Stores or exposes AudioPlaybackTrackingOptions.
+    /// </summary>
+    public ObservableCollection<string> AudioPlaybackTrackingOptions { get; } = ["Mixer", "Playlist", "Pattern editor", "Analyzer"];
+    /// <summary>
+    /// Stores or exposes AutosaveModeOptions.
+    /// </summary>
+    public ObservableCollection<string> AutosaveModeOptions { get; } = ["Off", "Frequently (every 2 minutes)", "Occasionally (every 10 minutes)", "Before every export"];
+    /// <summary>
+    /// Stores or exposes BackupLocationOptions.
+    /// </summary>
+    public ObservableCollection<string> BackupLocationOptions { get; } = ["Project data folder when available", "User data folder", "Log/config folder"];
+    /// <summary>
+    /// Stores or exposes ScalingModeOptions.
+    /// </summary>
+    public ObservableCollection<string> ScalingModeOptions { get; } = ["System", "Main", "Compact", "Large"];
+    /// <summary>
+    /// Stores or exposes AnimationModeOptions.
+    /// </summary>
+    public ObservableCollection<string> AnimationModeOptions { get; } = ["Off", "Don't distract me", "Smooth", "Ultrasmooth"];
+    /// <summary>
+    /// Stores or exposes ThemeColorMapOptions.
+    /// </summary>
+    public ObservableCollection<string> ThemeColorMapOptions { get; } = ["Spectrum", "Fire", "Ice", "CRT green", "Monochrome"];
+    /// <summary>
+    /// Stores or exposes ProjectTemplateOptions.
+    /// </summary>
+    public ObservableCollection<string> ProjectTemplateOptions { get; } = ["Default template", "Hardstyle_2025", "C64 pulse kit", "NES four channel", "XM tracker blank"];
+    /// <summary>
+    /// Stores or exposes StartupProjectOptions.
+    /// </summary>
+    public ObservableCollection<string> StartupProjectOptions { get; } = ["Default template", "Last project", "Empty song", "Project hub"];
+    /// <summary>
+    /// User-configured browser search folders displayed in Settings.
+    /// </summary>
+    public ObservableCollection<string> BrowserSearchFolders { get; } =
+    [
+        @"C:\VSTs\",
+        @"C:\Program Files\Common Files\VST3\",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "amChipper")
+    ];
 
     /// <summary>
     /// Executes the this operation.
@@ -252,6 +313,406 @@ public sealed class MainViewModel : BaseViewModel
     {
         get => _audioBufferCount;
         set => SetField(ref _audioBufferCount, Math.Clamp(value, 2, 8));
+    }
+
+    private string _midiOutputDevice = "Microsoft GS Wavetable Synth";
+    /// <summary>
+    /// Selected MIDI output route for preview and external sync.
+    /// </summary>
+    public string MidiOutputDevice
+    {
+        get => _midiOutputDevice;
+        set => SetField(ref _midiOutputDevice, NormalizeOption(value, MidiOutputDeviceOptions, "Microsoft GS Wavetable Synth"));
+    }
+
+    private string _midiInputMode = "Disabled";
+    /// <summary>
+    /// Selected MIDI input handling mode.
+    /// </summary>
+    public string MidiInputMode
+    {
+        get => _midiInputMode;
+        set => SetField(ref _midiInputMode, NormalizeOption(value, MidiInputModeOptions, "Disabled"));
+    }
+
+    private string _midiSynchronization = "MIDI clock";
+    /// <summary>
+    /// Synchronization protocol used when MIDI sync is enabled.
+    /// </summary>
+    public string MidiSynchronization
+    {
+        get => _midiSynchronization;
+        set => SetField(ref _midiSynchronization, NormalizeOption(value, MidiSynchronizationOptions, "MIDI clock"));
+    }
+
+    private bool _midiMasterSync;
+    /// <summary>
+    /// Enables outgoing MIDI master sync.
+    /// </summary>
+    public bool MidiMasterSync
+    {
+        get => _midiMasterSync;
+        set => SetField(ref _midiMasterSync, value);
+    }
+
+    private bool _midiSendAllNotesOff = true;
+    /// <summary>
+    /// Sends all-notes-off on transport stop and device changes.
+    /// </summary>
+    public bool MidiSendAllNotesOff
+    {
+        get => _midiSendAllNotesOff;
+        set => SetField(ref _midiSendAllNotesOff, value);
+    }
+
+    private bool _midiAutoAcceptController = true;
+    /// <summary>
+    /// Auto-accepts detected MIDI controller mappings while learning.
+    /// </summary>
+    public bool MidiAutoAcceptController
+    {
+        get => _midiAutoAcceptController;
+        set => SetField(ref _midiAutoAcceptController, value);
+    }
+
+    private int _midiOmniPreviewChannel = 1;
+    /// <summary>
+    /// Omni preview channel used for typing keyboard and external MIDI preview.
+    /// </summary>
+    public int MidiOmniPreviewChannel
+    {
+        get => _midiOmniPreviewChannel;
+        set => SetField(ref _midiOmniPreviewChannel, Math.Clamp(value, 1, 16));
+    }
+
+    private int _midiMasterSyncOffsetMs;
+    /// <summary>
+    /// Offset in milliseconds applied to outgoing MIDI sync.
+    /// </summary>
+    public int MidiMasterSyncOffsetMs
+    {
+        get => _midiMasterSyncOffsetMs;
+        set => SetField(ref _midiMasterSyncOffsetMs, Math.Clamp(value, -500, 500));
+    }
+
+    private bool _audioAutoClose;
+    /// <summary>
+    /// Auto-closes the audio device when transport is idle.
+    /// </summary>
+    public bool AudioAutoClose
+    {
+        get => _audioAutoClose;
+        set => SetField(ref _audioAutoClose, value);
+    }
+
+    private string _audioPriority = "Highest";
+    /// <summary>
+    /// Audio thread priority preference.
+    /// </summary>
+    public string AudioPriority
+    {
+        get => _audioPriority;
+        set => SetField(ref _audioPriority, NormalizeOption(value, AudioPriorityOptions, "Highest"));
+    }
+
+    private string _audioResamplingQuality = "24-point sinc";
+    /// <summary>
+    /// Resampling quality preference used by rendered conversion paths.
+    /// </summary>
+    public string AudioResamplingQuality
+    {
+        get => _audioResamplingQuality;
+        set => SetField(ref _audioResamplingQuality, NormalizeOption(value, AudioResamplingQualityOptions, "24-point sinc"));
+    }
+
+    private string _audioPlaybackTracking = "Mixer";
+    /// <summary>
+    /// Preferred rack used for playback tracking focus.
+    /// </summary>
+    public string AudioPlaybackTracking
+    {
+        get => _audioPlaybackTracking;
+        set => SetField(ref _audioPlaybackTracking, NormalizeOption(value, AudioPlaybackTrackingOptions, "Mixer"));
+    }
+
+    private bool _audioSafeOverloads = true;
+    /// <summary>
+    /// Keeps overload protection enabled for preview and render paths.
+    /// </summary>
+    public bool AudioSafeOverloads
+    {
+        get => _audioSafeOverloads;
+        set => SetField(ref _audioSafeOverloads, value);
+    }
+
+    private bool _audioResetPluginsOnTransport;
+    /// <summary>
+    /// Resets generator state on transport start and stop.
+    /// </summary>
+    public bool AudioResetPluginsOnTransport
+    {
+        get => _audioResetPluginsOnTransport;
+        set => SetField(ref _audioResetPluginsOnTransport, value);
+    }
+
+    private int _generalUndoLevels = 100;
+    /// <summary>
+    /// Maximum undo history depth retained by editor workflows.
+    /// </summary>
+    public int GeneralUndoLevels
+    {
+        get => _generalUndoLevels;
+        set => SetField(ref _generalUndoLevels, Math.Clamp(value, 10, 1000));
+    }
+
+    private bool _generalUndoKnobTweaks = true;
+    /// <summary>
+    /// Records small knob and slider edits in undo history.
+    /// </summary>
+    public bool GeneralUndoKnobTweaks
+    {
+        get => _generalUndoKnobTweaks;
+        set => SetField(ref _generalUndoKnobTweaks, value);
+    }
+
+    private bool _generalShowRecentChanges;
+    /// <summary>
+    /// Shows recent changes at the top of diagnostic and help panes.
+    /// </summary>
+    public bool GeneralShowRecentChanges
+    {
+        get => _generalShowRecentChanges;
+        set => SetField(ref _generalShowRecentChanges, value);
+    }
+
+    private int _generalProjectWarningMb = 100;
+    /// <summary>
+    /// Warns when project data grows beyond this size.
+    /// </summary>
+    public int GeneralProjectWarningMb
+    {
+        get => _generalProjectWarningMb;
+        set => SetField(ref _generalProjectWarningMb, Math.Clamp(value, 10, 4096));
+    }
+
+    private bool _generalSilentStartup;
+    /// <summary>
+    /// Suppresses startup preview sounds and non-critical startup messages.
+    /// </summary>
+    public bool GeneralSilentStartup
+    {
+        get => _generalSilentStartup;
+        set => SetField(ref _generalSilentStartup, value);
+    }
+
+    private bool _generalRestorePreviousState;
+    /// <summary>
+    /// Restores previous project/session state at launch.
+    /// </summary>
+    public bool GeneralRestorePreviousState
+    {
+        get => _generalRestorePreviousState;
+        set => SetField(ref _generalRestorePreviousState, value);
+    }
+
+    private bool _generalHighPerformancePowerPlan = true;
+    /// <summary>
+    /// Indicates that high-performance audio behavior is preferred.
+    /// </summary>
+    public bool GeneralHighPerformancePowerPlan
+    {
+        get => _generalHighPerformancePowerPlan;
+        set => SetField(ref _generalHighPerformancePowerPlan, value);
+    }
+
+    private string _fileAutosaveMode = "Occasionally (every 10 minutes)";
+    /// <summary>
+    /// Autosave cadence used by project workflows.
+    /// </summary>
+    public string FileAutosaveMode
+    {
+        get => _fileAutosaveMode;
+        set => SetField(ref _fileAutosaveMode, NormalizeOption(value, AutosaveModeOptions, "Occasionally (every 10 minutes)"));
+    }
+
+    private string _fileBackupLocationMode = "Project data folder when available";
+    /// <summary>
+    /// Preferred location for automatic project backups.
+    /// </summary>
+    public string FileBackupLocationMode
+    {
+        get => _fileBackupLocationMode;
+        set => SetField(ref _fileBackupLocationMode, NormalizeOption(value, BackupLocationOptions, "Project data folder when available"));
+    }
+
+    private string _userDataFolder = string.Empty;
+    /// <summary>
+    /// User data folder used for presets, imports and external content.
+    /// </summary>
+    public string UserDataFolder
+    {
+        get => _userDataFolder;
+        set => SetField(ref _userDataFolder, value ?? string.Empty);
+    }
+
+    private string _externalToolPath = @"C:\Windows\System32\Notepad.exe";
+    /// <summary>
+    /// External script/tool editor path launched from file settings.
+    /// </summary>
+    public string ExternalToolPath
+    {
+        get => _externalToolPath;
+        set => SetField(ref _externalToolPath, value ?? string.Empty);
+    }
+
+    private string _themeGuiScaling = "System";
+    /// <summary>
+    /// GUI scaling preference.
+    /// </summary>
+    public string ThemeGuiScaling
+    {
+        get => _themeGuiScaling;
+        set => SetField(ref _themeGuiScaling, NormalizeOption(value, ScalingModeOptions, "System"));
+    }
+
+    private string _themePopupScaling = "Main";
+    /// <summary>
+    /// Popup scaling preference.
+    /// </summary>
+    public string ThemePopupScaling
+    {
+        get => _themePopupScaling;
+        set => SetField(ref _themePopupScaling, NormalizeOption(value, ScalingModeOptions, "Main"));
+    }
+
+    private string _themeToolbarScaling = "Main";
+    /// <summary>
+    /// Toolbar scaling preference.
+    /// </summary>
+    public string ThemeToolbarScaling
+    {
+        get => _themeToolbarScaling;
+        set => SetField(ref _themeToolbarScaling, NormalizeOption(value, ScalingModeOptions, "Main"));
+    }
+
+    private string _themeAnimationMode = "Ultrasmooth";
+    /// <summary>
+    /// Animation smoothness preference.
+    /// </summary>
+    public string ThemeAnimationMode
+    {
+        get => _themeAnimationMode;
+        set => SetField(ref _themeAnimationMode, NormalizeOption(value, AnimationModeOptions, "Ultrasmooth"));
+    }
+
+    private bool _themeTransparentWindows = true;
+    /// <summary>
+    /// Enables transparent window effects where supported.
+    /// </summary>
+    public bool ThemeTransparentWindows
+    {
+        get => _themeTransparentWindows;
+        set => SetField(ref _themeTransparentWindows, value);
+    }
+
+    private bool _themeHighVisibility;
+    /// <summary>
+    /// Enables high-visibility UI hints for dense editors.
+    /// </summary>
+    public bool ThemeHighVisibility
+    {
+        get => _themeHighVisibility;
+        set => SetField(ref _themeHighVisibility, value);
+    }
+
+    private bool _themeSmallScrollbars;
+    /// <summary>
+    /// Uses smaller scrollbars in dense editors.
+    /// </summary>
+    public bool ThemeSmallScrollbars
+    {
+        get => _themeSmallScrollbars;
+        set => SetField(ref _themeSmallScrollbars, value);
+    }
+
+    private string _themeColorMap = "Spectrum";
+    /// <summary>
+    /// Color-map preset used by analyzer and waveform views.
+    /// </summary>
+    public string ThemeColorMap
+    {
+        get => _themeColorMap;
+        set => SetField(ref _themeColorMap, NormalizeOption(value, ThemeColorMapOptions, "Spectrum"));
+    }
+
+    private string _projectDefaultTemplate = "Hardstyle_2025";
+    /// <summary>
+    /// Default template selected for new projects.
+    /// </summary>
+    public string ProjectDefaultTemplate
+    {
+        get => _projectDefaultTemplate;
+        set => SetField(ref _projectDefaultTemplate, NormalizeOption(value, ProjectTemplateOptions, "Hardstyle_2025"));
+    }
+
+    private string _projectStartupProject = "Default template";
+    /// <summary>
+    /// Startup project behavior.
+    /// </summary>
+    public string ProjectStartupProject
+    {
+        get => _projectStartupProject;
+        set => SetField(ref _projectStartupProject, NormalizeOption(value, StartupProjectOptions, "Default template"));
+    }
+
+    private bool _projectAutoNameChannels = true;
+    /// <summary>
+    /// Auto-names channels from imported instruments and samples.
+    /// </summary>
+    public bool ProjectAutoNameChannels
+    {
+        get => _projectAutoNameChannels;
+        set => SetField(ref _projectAutoNameChannels, value);
+    }
+
+    private bool _projectAutoSelectLinkedModules = true;
+    /// <summary>
+    /// Auto-selects linked module data when opening supported trackers.
+    /// </summary>
+    public bool ProjectAutoSelectLinkedModules
+    {
+        get => _projectAutoSelectLinkedModules;
+        set => SetField(ref _projectAutoSelectLinkedModules, value);
+    }
+
+    private bool _projectAutoZoomPianoRoll;
+    /// <summary>
+    /// Auto-zooms piano roll to the first active notes in the selected pattern.
+    /// </summary>
+    public bool ProjectAutoZoomPianoRoll
+    {
+        get => _projectAutoZoomPianoRoll;
+        set => SetField(ref _projectAutoZoomPianoRoll, value);
+    }
+
+    private bool _projectCreateAutomationAtPlaybackPosition = true;
+    /// <summary>
+    /// Creates automation clips at the current playback position.
+    /// </summary>
+    public bool ProjectCreateAutomationAtPlaybackPosition
+    {
+        get => _projectCreateAutomationAtPlaybackPosition;
+        set => SetField(ref _projectCreateAutomationAtPlaybackPosition, value);
+    }
+
+    private bool _projectSelectFirstNoteChannel;
+    /// <summary>
+    /// Selects the first channel with notes when pattern selection changes.
+    /// </summary>
+    public bool ProjectSelectFirstNoteChannel
+    {
+        get => _projectSelectFirstNoteChannel;
+        set => SetField(ref _projectSelectFirstNoteChannel, value);
     }
 
     /// <summary>
@@ -2482,6 +2943,47 @@ public sealed class MainViewModel : BaseViewModel
         AudioSampleRate = AudioSampleRate,
         AudioLatencyMs = AudioLatencyMs,
         AudioBufferCount = AudioBufferCount,
+        MidiOutputDevice = MidiOutputDevice,
+        MidiInputMode = MidiInputMode,
+        MidiSynchronization = MidiSynchronization,
+        MidiMasterSync = MidiMasterSync,
+        MidiSendAllNotesOff = MidiSendAllNotesOff,
+        MidiAutoAcceptController = MidiAutoAcceptController,
+        MidiOmniPreviewChannel = MidiOmniPreviewChannel,
+        MidiMasterSyncOffsetMs = MidiMasterSyncOffsetMs,
+        AudioAutoClose = AudioAutoClose,
+        AudioPriority = AudioPriority,
+        AudioResamplingQuality = AudioResamplingQuality,
+        AudioPlaybackTracking = AudioPlaybackTracking,
+        AudioSafeOverloads = AudioSafeOverloads,
+        AudioResetPluginsOnTransport = AudioResetPluginsOnTransport,
+        GeneralUndoLevels = GeneralUndoLevels,
+        GeneralUndoKnobTweaks = GeneralUndoKnobTweaks,
+        GeneralShowRecentChanges = GeneralShowRecentChanges,
+        GeneralProjectWarningMb = GeneralProjectWarningMb,
+        GeneralSilentStartup = GeneralSilentStartup,
+        GeneralRestorePreviousState = GeneralRestorePreviousState,
+        GeneralHighPerformancePowerPlan = GeneralHighPerformancePowerPlan,
+        FileAutosaveMode = FileAutosaveMode,
+        FileBackupLocationMode = FileBackupLocationMode,
+        UserDataFolder = UserDataFolder,
+        BrowserSearchFolders = BrowserSearchFolders.Where(static path => !string.IsNullOrWhiteSpace(path)).ToArray(),
+        ExternalToolPath = ExternalToolPath,
+        ThemeGuiScaling = ThemeGuiScaling,
+        ThemePopupScaling = ThemePopupScaling,
+        ThemeToolbarScaling = ThemeToolbarScaling,
+        ThemeAnimationMode = ThemeAnimationMode,
+        ThemeTransparentWindows = ThemeTransparentWindows,
+        ThemeHighVisibility = ThemeHighVisibility,
+        ThemeSmallScrollbars = ThemeSmallScrollbars,
+        ThemeColorMap = ThemeColorMap,
+        ProjectDefaultTemplate = ProjectDefaultTemplate,
+        ProjectStartupProject = ProjectStartupProject,
+        ProjectAutoNameChannels = ProjectAutoNameChannels,
+        ProjectAutoSelectLinkedModules = ProjectAutoSelectLinkedModules,
+        ProjectAutoZoomPianoRoll = ProjectAutoZoomPianoRoll,
+        ProjectCreateAutomationAtPlaybackPosition = ProjectCreateAutomationAtPlaybackPosition,
+        ProjectSelectFirstNoteChannel = ProjectSelectFirstNoteChannel,
         VerboseLogging = VerboseLogging,
         LogDependencyLoadDetails = LogDependencyLoadDetails,
         LogDirectory = LogDirectory
@@ -2530,6 +3032,49 @@ public sealed class MainViewModel : BaseViewModel
         AudioSampleRate = configuration.AudioSampleRate <= 0 ? 44100 : configuration.AudioSampleRate;
         AudioLatencyMs = configuration.AudioLatencyMs <= 0 ? 200 : configuration.AudioLatencyMs;
         AudioBufferCount = configuration.AudioBufferCount <= 0 ? 4 : configuration.AudioBufferCount;
+        MidiOutputDevice = configuration.MidiOutputDevice;
+        MidiInputMode = configuration.MidiInputMode;
+        MidiSynchronization = configuration.MidiSynchronization;
+        MidiMasterSync = configuration.MidiMasterSync;
+        MidiSendAllNotesOff = configuration.MidiSendAllNotesOff;
+        MidiAutoAcceptController = configuration.MidiAutoAcceptController;
+        MidiOmniPreviewChannel = configuration.MidiOmniPreviewChannel;
+        MidiMasterSyncOffsetMs = configuration.MidiMasterSyncOffsetMs;
+        AudioAutoClose = configuration.AudioAutoClose;
+        AudioPriority = configuration.AudioPriority;
+        AudioResamplingQuality = configuration.AudioResamplingQuality;
+        AudioPlaybackTracking = configuration.AudioPlaybackTracking;
+        AudioSafeOverloads = configuration.AudioSafeOverloads;
+        AudioResetPluginsOnTransport = configuration.AudioResetPluginsOnTransport;
+        GeneralUndoLevels = configuration.GeneralUndoLevels <= 0 ? 100 : configuration.GeneralUndoLevels;
+        GeneralUndoKnobTweaks = configuration.GeneralUndoKnobTweaks;
+        GeneralShowRecentChanges = configuration.GeneralShowRecentChanges;
+        GeneralProjectWarningMb = configuration.GeneralProjectWarningMb <= 0 ? 100 : configuration.GeneralProjectWarningMb;
+        GeneralSilentStartup = configuration.GeneralSilentStartup;
+        GeneralRestorePreviousState = configuration.GeneralRestorePreviousState;
+        GeneralHighPerformancePowerPlan = configuration.GeneralHighPerformancePowerPlan;
+        FileAutosaveMode = configuration.FileAutosaveMode;
+        FileBackupLocationMode = configuration.FileBackupLocationMode;
+        UserDataFolder = configuration.UserDataFolder;
+        BrowserSearchFolders.Clear();
+        foreach (string folder in configuration.BrowserSearchFolders is { Length: > 0 } ? configuration.BrowserSearchFolders : [@"C:\VSTs\", @"C:\Program Files\Common Files\VST3\", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "amChipper")])
+            BrowserSearchFolders.Add(folder);
+        ExternalToolPath = configuration.ExternalToolPath;
+        ThemeGuiScaling = configuration.ThemeGuiScaling;
+        ThemePopupScaling = configuration.ThemePopupScaling;
+        ThemeToolbarScaling = configuration.ThemeToolbarScaling;
+        ThemeAnimationMode = configuration.ThemeAnimationMode;
+        ThemeTransparentWindows = configuration.ThemeTransparentWindows;
+        ThemeHighVisibility = configuration.ThemeHighVisibility;
+        ThemeSmallScrollbars = configuration.ThemeSmallScrollbars;
+        ThemeColorMap = configuration.ThemeColorMap;
+        ProjectDefaultTemplate = configuration.ProjectDefaultTemplate;
+        ProjectStartupProject = configuration.ProjectStartupProject;
+        ProjectAutoNameChannels = configuration.ProjectAutoNameChannels;
+        ProjectAutoSelectLinkedModules = configuration.ProjectAutoSelectLinkedModules;
+        ProjectAutoZoomPianoRoll = configuration.ProjectAutoZoomPianoRoll;
+        ProjectCreateAutomationAtPlaybackPosition = configuration.ProjectCreateAutomationAtPlaybackPosition;
+        ProjectSelectFirstNoteChannel = configuration.ProjectSelectFirstNoteChannel;
         VerboseLogging = configuration.VerboseLogging;
         LogDependencyLoadDetails = configuration.LogDependencyLoadDetails;
         LogDirectory = string.IsNullOrWhiteSpace(configuration.LogDirectory) ? AppLogger.LogDirectory : configuration.LogDirectory;
