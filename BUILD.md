@@ -26,6 +26,48 @@ Or open `amChipper.sln` in Visual Studio 2022+ and press **F5**.
 
 ---
 
+## Build the Installer
+
+amChipper has an amSetup installer project under `setup/`. It packages the
+validated `Ready2Release` folder into a single setup executable with shortcuts,
+file associations, runtime prerequisite checks, language packs, examples,
+documentation, tools, and install-folder workspace directories.
+
+From the repository root:
+
+```powershell
+.\build\Build-AmChipperInstaller.ps1
+```
+
+For a fast installer rebuild from an existing `Ready2Release` folder:
+
+```powershell
+.\build\Build-AmChipperInstaller.ps1 -SkipRestore -SkipBuild -SkipTests -SkipPublish -SkipAppSmokeTest
+```
+
+Theme/layout examples:
+
+```powershell
+.\build\Build-AmChipperInstaller.ps1 -InstallerTheme dark
+.\build\Build-AmChipperInstaller.ps1 -InstallerTheme oldschool -Layout Split -ChunkSize 256m
+.\build\Build-AmChipperInstaller.ps1 -RunInstallerSmokeTest
+```
+
+The installer is written to:
+
+```text
+artifacts\installers\amChipper-<version>-win-x64-Setup.exe
+```
+
+The script expects the sibling amSetup checkout at `..\amSetup` by default.
+Pass `-AmSetupRoot <path>` if it is somewhere else. It publishes the WPF app,
+publishes the language tool, exports language packs, copies docs/examples,
+ensures libopenmpt runtime DLLs are present, normalizes `amChipper.deps.json`
+for the `libs` layout, runs amSetup dependency analysis, builds the setup, and
+verifies `inspect` plus a silent dry-run.
+
+---
+
 ## Logging (QuickLog)
 
 amChipper uses **QuickLog** (`QuickLog` v1.0.2 on NuGet — `github.com/m4mm0n/QuickLog`).

@@ -1,0 +1,9 @@
+﻿{
+    "manifestPath":  "amsetup.json",
+    "payloadPath":  "..\\Ready2Release",
+    "outputPath":  "..\\artifacts\\installers\\amChipper-0.1.0-win-x64-Setup.exe",
+    "stubPath":  "..\\..\\amSetup\\artifacts\\stubs\\win-x64\\amSetup.exe",
+    "compression":  "Balanced",
+    "layout":  "Embedded",
+    "chunkSize":  "512m"
+}
