@@ -310,9 +310,14 @@ public static class InternalChipRenderer
             var runtime = new NsfRuntime(program, metadata, sampleRate);
             int frames = seconds * sampleRate;
             float[] stereo = new float[frames * 2];
+            int maxRenderMilliseconds = Math.Clamp(seconds * 250, 1500, 6000);
+            var renderBudget = Stopwatch.StartNew();
 
             for (int frame = 0; frame < frames; frame++)
             {
+                if ((frame & 0x1FFF) == 0 && renderBudget.ElapsedMilliseconds > maxRenderMilliseconds)
+                    throw new TimeoutException($"NSF render exceeded {maxRenderMilliseconds}ms safety budget.");
+
                 if (frame >= runtime._nextPlaySample)
                 {
                     if (runtime._deferredPlayCalls > 0)

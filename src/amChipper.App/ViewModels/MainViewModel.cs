@@ -61,6 +61,8 @@ public sealed class MainViewModel : BaseViewModel
         private set => SetField(ref _masterMeterLevel, Math.Clamp(value, 0d, 1d));
     }
 
+    private int _bufferUiUpdatePending;
+
     /// <summary>
     /// Stores or exposes SpectrumBands.
     /// </summary>
@@ -1443,6 +1445,9 @@ public sealed class MainViewModel : BaseViewModel
         };
         Audio.BufferRendered += (_, e) =>
         {
+            if (Interlocked.Exchange(ref _bufferUiUpdatePending, 1) == 1)
+                return;
+
             float peak = 0f;
             int limit = Math.Min(e.Buffer.Length, e.FrameCount * 2);
             for (int i = 0; i < limit; i++)
@@ -1452,15 +1457,33 @@ public sealed class MainViewModel : BaseViewModel
                     peak = abs;
             }
 
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is null)
             {
-                MasterMeterLevel = peak;
-                UpdateSpectrum(e.Buffer, limit);
-                if (Audio.UseModulePlayer)
-                    ApplyModuleVuMeters();
-                UpdateRuntimeTempoReadout();
-                SyncPlaybackVisualsFromTransport();
-                UpdateTransportReadout();
+                Interlocked.Exchange(ref _bufferUiUpdatePending, 0);
+                return;
+            }
+
+            float[] analyzerBuffer = new float[limit];
+            Array.Copy(e.Buffer, analyzerBuffer, limit);
+            dispatcher.BeginInvoke(() =>
+            {
+                try
+                {
+                    MasterMeterLevel = peak;
+                    UpdateSpectrum(analyzerBuffer, limit);
+                    if (Audio.UseModulePlayer)
+                        ApplyModuleVuMeters();
+                    else if (Audio.UseAudioFilePlayer)
+                        ApplyRenderedAudioTrackMeters(peak);
+                    UpdateRuntimeTempoReadout();
+                    SyncPlaybackVisualsFromTransport();
+                    UpdateTransportReadout();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _bufferUiUpdatePending, 0);
+                }
             });
         };
 
@@ -6110,6 +6133,106 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         }
     }
 
+    private void ApplyRenderedAudioTrackMeters(float masterPeak)
+    {
+        if (_song.Tracks.Count == 0 || _song.Patterns.Count == 0)
+            return;
+
+        double beat = Audio.AudioFilePlayer.PositionSecs * Math.Max(_song.Bpm, 1) / 60.0;
+        int patternIndex = PatternEditor.CurrentPatternIndex;
+        int row = 0;
+        if (TryResolveOrderAtBeat(beat, out int order, out int resolvedRow))
+        {
+            int orderPattern = ResolvePatternForOrder(order);
+            if (orderPattern >= 0)
+                patternIndex = orderPattern;
+            row = resolvedRow;
+        }
+        else if (_song.Patterns.Count > 0)
+        {
+            row = Math.Max(0, (int)Math.Floor(beat * Math.Max(_song.RowsPerBeat, 1)));
+        }
+
+        ApplyPatternActivityMeters(patternIndex, row, masterPeak, preferExistingPeaks: true);
+    }
+
+    private void ApplyPatternActivityMeters(int patternIndex, int row, double masterPeak, bool preferExistingPeaks)
+    {
+        if (patternIndex < 0 || patternIndex >= _song.Patterns.Count)
+        {
+            DecayModuleTrackMeters();
+            return;
+        }
+
+        var pattern = _song.Patterns[patternIndex];
+        row = Math.Clamp(row, 0, Math.Max(pattern.RowCount - 1, 0));
+        int channels = Math.Min(pattern.ChannelCount, _song.Tracks.Count);
+        double masterLift = Math.Clamp(masterPeak * 2.2, 0.12, 1.0);
+
+        for (int channel = 0; channel < _song.Tracks.Count; channel++)
+        {
+            if (channel >= channels)
+            {
+                _song.Tracks[channel].MeterLevel *= 0.90;
+                continue;
+            }
+
+            if (TryResolveActiveCell(pattern, row, channel, out var activeNote, out int ageRows))
+            {
+                double noteVolume = activeNote.Volume <= 64 ? activeNote.Volume / 64.0 : 0.78;
+                if (activeNote.VolumeColumn is > 0 and <= 64)
+                    noteVolume = Math.Max(noteVolume, activeNote.VolumeColumn / 64.0);
+                double trackVolume = _song.Tracks[channel].Volume / 128.0;
+                double ageDecay = Math.Pow(0.965, Math.Max(0, ageRows));
+                double level = Math.Clamp(noteVolume * trackVolume * masterLift * ageDecay, 0.10, 1.0);
+                _song.Tracks[channel].MeterLevel = preferExistingPeaks
+                    ? Math.Max(_song.Tracks[channel].MeterLevel * 0.78, level)
+                    : level;
+                _song.Tracks[channel].EffectSummary = BuildLiveCellSummary(activeNote);
+            }
+            else
+            {
+                _song.Tracks[channel].MeterLevel *= 0.90;
+            }
+        }
+    }
+
+    private static bool TryResolveActiveCell(Pattern pattern, int row, int channel, out Note note, out int ageRows)
+    {
+        int lookback = Math.Min(row, 96);
+        for (int offset = 0; offset <= lookback; offset++)
+        {
+            int candidateRow = row - offset;
+            var candidate = pattern.GetNote(candidateRow, channel);
+            bool noteOff = candidate.Pitch == (byte)SpecialNote.NoteOff;
+            if (noteOff)
+                break;
+
+            bool hasTrigger = candidate.Pitch is > 0 and < (byte)SpecialNote.NoteOff ||
+                candidate.InstrumentIndex > 0 ||
+                candidate.Volume != 255 ||
+                candidate.VolumeColumn != 0 ||
+                candidate.Effect != EffectCommand.None ||
+                candidate.EffectColumn != 0 ||
+                candidate.EffectParam != 0;
+
+            if (!hasTrigger)
+                continue;
+
+            int durationRows = (int)Math.Clamp(candidate.DurationTicks <= 0 ? 1 : candidate.DurationTicks, 1, 256);
+            if (offset == 0 || offset < durationRows || candidate.Pitch is > 0 and < (byte)SpecialNote.NoteOff)
+            {
+                note = candidate;
+                ageRows = offset;
+                return true;
+            }
+        }
+
+        note = new Note();
+        ageRows = 0;
+        return false;
+    }
+
     /// <summary>
     /// Executes the BuildLiveCellSummary operation.
     /// </summary>
@@ -6218,7 +6341,12 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             _song.Tracks[i].MeterLevel *= 0.94;
 
         if (!usedNativeVu)
-            DecayModuleTrackMeters();
+        {
+            int patternIndex = ResolvePatternForOrder(Audio.ModulePlayer.CurrentOrder);
+            if (patternIndex < 0)
+                patternIndex = PatternEditor.CurrentPatternIndex;
+            ApplyPatternActivityMeters(patternIndex, Math.Max(0, Audio.ModulePlayer.CurrentRow), MasterMeterLevel, preferExistingPeaks: true);
+        }
     }
 
     /// <summary>
