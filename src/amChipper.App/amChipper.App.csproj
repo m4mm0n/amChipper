@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>amChipper.App</RootNamespace>
+    <AssemblyName>amChipper</AssemblyName>
+    <StartupObject>amChipper.App.App</StartupObject>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>v0.1.0.0-AMC20260502.6</InformationalVersion>
+    <Product>amChipper</Product>
+    <Platforms>x64</Platforms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <ProjectReference Include="..\QuickLog\QuickLog.csproj">
+      <Properties>Platform=AnyCPU</Properties>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\amChipper.Core\amChipper.Core.csproj" />
+    <ProjectReference Include="..\amChipper.Audio\amChipper.Audio.csproj" />
+    <ProjectReference Include="..\amChipper.AmcPlayer\amChipper.AmcPlayer.csproj" />
+    <ProjectReference Include="..\amChipper.SidPlayer\amChipper.SidPlayer.csproj" />
+    <ProjectReference Include="..\amChipper.NsfPlayer\amChipper.NsfPlayer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\logo.png" Link="Assets\logo.png" />
+    <Resource Include="..\..\logo_splash.png" Link="Assets\logo_splash.png" />
+    <Resource Include="..\..\icon_clean.png" Link="Assets\icon_clean.png" />
+    <Resource Include="..\..\icon.ico" Link="Assets\icon.ico" />
+    <Content Include="..\..\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\USER_GUIDE.txt" Link="USER_GUIDE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\examples\Outlive no2.amc" Link="Examples\Outlive no2.amc" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\examples\Outlive no2.amc')" />
+    <Content Include="..\..\c64\DOCUMENTS\Songlengths.txt" Link="Songlengths.txt" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\c64\DOCUMENTS\Songlengths.txt')" />
+  </ItemGroup>
+
+  <Target Name="MoveDependencyDllsToLibs" AfterTargets="Build">
+    <ItemGroup>
+      <DependencyDll Include="$(TargetDir)*.dll" Exclude="$(TargetPath)" />
+    </ItemGroup>
+    <MakeDir Directories="$(TargetDir)libs" Condition="'@(DependencyDll)' != ''" />
+    <Move SourceFiles="@(DependencyDll)"
+          DestinationFolder="$(TargetDir)libs"
+          OverwriteReadOnlyFiles="true"
+          Condition="'@(DependencyDll)' != ''" />
+  </Target>
+
+  <Target Name="MovePublishedDependencyDllsToLibs" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
+    <ItemGroup>
+      <PublishedDependencyDll Include="$(PublishDir)*.dll" Exclude="$(PublishDir)$(AssemblyName).dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(PublishDir)libs" Condition="'@(PublishedDependencyDll)' != ''" />
+    <Move SourceFiles="@(PublishedDependencyDll)"
+          DestinationFolder="$(PublishDir)libs"
+          OverwriteReadOnlyFiles="true"
+          Condition="'@(PublishedDependencyDll)' != ''" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\build\NormalizePublishDeps.ps1&quot; -PublishDir &apos;$(PublishDir)&apos; -AssemblyName &apos;$(AssemblyName)&apos;" />
+  </Target>
+
+  <!-- Copy libopenmpt.dll to output if present -->
+  <ItemGroup>
+    <None Update="lib\libopenmpt.dll" Condition="Exists('lib\libopenmpt.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

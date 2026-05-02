@@ -1,0 +1,7 @@
+* [Home](Home.md)
+* [Building](Building.md)
+* [Architecture](Architecture.md)
+* [Format Support](Formats.md)
+* [Release Process](Release.md)
+* [Localization](Localization.md)
+* [Commercial Licensing](Commercial-Licensing.md)

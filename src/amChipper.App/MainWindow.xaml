@@ -1,0 +1,1185 @@
+<Window x:Class="amChipper.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:amChipper.App.ViewModels"
+        xmlns:transport="clr-namespace:amChipper.App.Controls.Transport"
+        xmlns:browser="clr-namespace:amChipper.App.Controls.InstrumentBrowser"
+        xmlns:channelRack="clr-namespace:amChipper.App.Controls.ChannelRack"
+        xmlns:automation="clr-namespace:amChipper.App.Controls.Automation"
+        xmlns:piano="clr-namespace:amChipper.App.Controls.PianoRoll"
+        xmlns:song="clr-namespace:amChipper.App.Controls.SongEditor"
+        xmlns:pattern="clr-namespace:amChipper.App.Controls.PatternEditor"
+        Title="{Binding Title}"
+        Width="1400" Height="860"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Assets/icon_clean.png"
+        Background="{DynamicResource BgDeep}"
+        ToolTipService.InitialShowDelay="{Binding ToolTipInitialDelayMs}"
+        ToolTipService.ShowDuration="{Binding ToolTipDurationMs}">
+
+  <Window.InputBindings>
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}"/>
+    <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}"/>
+    <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveFileCommand}"/>
+    <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenFileCommand}"/>
+    <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewSongCommand}"/>
+    <KeyBinding Key="Space" Command="{Binding TogglePlaybackCommand}"/>
+    <KeyBinding Key="Space" Modifiers="Shift" Command="{Binding StopCommand}"/>
+    <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="Song"/>
+    <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="Pattern"/>
+    <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="PianoRoll"/>
+    <KeyBinding Key="F1" Command="{Binding ShowHelpCommand}"/>
+  </Window.InputBindings>
+
+  <!-- ── Top-level layout ──────────────────────────────────────────────────── -->
+  <DockPanel>
+
+    <!-- Menu bar -->
+    <Menu DockPanel.Dock="Top" Padding="4,2" Background="{DynamicResource FlStudioChrome}">
+      <MenuItem Header="{Binding [MenuFile]}">
+        <MenuItem Header="{Binding [NewSong]}"    Command="{Binding NewSongCommand}"  InputGestureText="Ctrl+N">
+          <MenuItem.Icon><TextBlock Text="+" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [Open]}"       Command="{Binding OpenFileCommand}" InputGestureText="Ctrl+O">
+          <MenuItem.Icon><TextBlock Text="⌕" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [Save]}"        Command="{Binding SaveFileCommand}" InputGestureText="Ctrl+S">
+          <MenuItem.Icon><TextBlock Text="▣" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [SaveAs]}"    Command="{Binding SaveAsCommand}"   InputGestureText="Ctrl+Shift+S">
+          <MenuItem.Icon><TextBlock Text="▤" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [ExportTo]}" Command="{Binding ExportToCommand}">
+          <MenuItem.Icon><TextBlock Text="⇱" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [ImportMidi]}" Command="{Binding ImportPianoRollMidiCommand}">
+          <MenuItem.Icon><TextBlock Text="♪" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [ImportFsc]}" Command="{Binding ImportPianoRollFscCommand}">
+          <MenuItem.Icon><TextBlock Text="♬" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [Exit]}" Click="MenuItem_Exit">
+          <MenuItem.Icon><TextBlock Text="×" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="{Binding [MenuEdit]}">
+        <MenuItem Header="{Binding [Undo]}"  Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z">
+          <MenuItem.Icon><TextBlock Text="↶" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [Redo]}"  Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y">
+          <MenuItem.Icon><TextBlock Text="↷" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [Cut]}"   InputGestureText="Ctrl+X">
+          <MenuItem.Icon><TextBlock Text="✂" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [Copy]}"  InputGestureText="Ctrl+C">
+          <MenuItem.Icon><TextBlock Text="⧉" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [Paste]}" InputGestureText="Ctrl+V">
+          <MenuItem.Icon><TextBlock Text="▣" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="{Binding [MenuSong]}">
+        <MenuItem Header="{Binding [PlayPause]}" Command="{Binding TogglePlaybackCommand}" InputGestureText="Space">
+          <MenuItem.Icon><TextBlock Text="▶" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [Stop]}" Command="{Binding StopCommand}" InputGestureText="Shift+Space">
+          <MenuItem.Icon><TextBlock Text="■" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [PlaySongScope]}" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="Song" InputGestureText="Ctrl+1">
+          <MenuItem.Icon><TextBlock Text="▦" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [PlayPatternScope]}" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="Pattern" InputGestureText="Ctrl+2">
+          <MenuItem.Icon><TextBlock Text="▥" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [PlayPianoRollScope]}" Command="{Binding SetPlaybackScopeCommand}" CommandParameter="PianoRoll" InputGestureText="Ctrl+3">
+          <MenuItem.Icon><TextBlock Text="▤" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [AddTrack]}"   Command="{Binding AddTrackCommand}">
+          <MenuItem.Icon><TextBlock Text="+T" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [AddPattern]}" Command="{Binding AddPatternCommand}">
+          <MenuItem.Icon><TextBlock Text="+P" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [AddInstrument]}" Command="{Binding AddInstrumentCommand}">
+          <MenuItem.Icon><TextBlock Text="+I" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [DuplicateBlock]}" Command="{Binding SongEditor.DuplicateBlockCommand}" InputGestureText="Ctrl+D">
+          <MenuItem.Icon><TextBlock Text="⧉" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [DuplicatePattern]}" Command="{Binding PatternEditor.DuplicatePatternCommand}" InputGestureText="Ctrl+D">
+          <MenuItem.Icon><TextBlock Text="⧉" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="{Binding [MenuView]}">
+        <MenuItem Header="{Binding [TabProjectHub]}"   Click="View_ProjectHub">
+          <MenuItem.Icon><TextBlock Text="⌂" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [TabSongEditor]}"    Click="View_SongEditor">
+          <MenuItem.Icon><TextBlock Text="▦" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [TabAnalyzer]}" Click="View_Analyzer">
+          <MenuItem.Icon><TextBlock Text="▥" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [TabPianoRoll]}"     Click="View_PianoRoll">
+          <MenuItem.Icon><TextBlock Text="▤" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [TabPatternEditor]}" Click="View_PatternEditor">
+          <MenuItem.Icon><TextBlock Text="#" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [Theme]}">
+          <MenuItem Header="FL Grape"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="FL Grape"/>
+          <MenuItem Header="Neon Studio"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Neon"/>
+          <MenuItem Header="Classic Tracker"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Classic"/>
+          <MenuItem Header="Amber CRT"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Amber"/>
+          <MenuItem Header="Midnight Pro"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Midnight Pro"/>
+          <MenuItem Header="Ice Matrix"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Ice Matrix"/>
+          <MenuItem Header="Magenta Circuit"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Magenta Circuit"/>
+          <MenuItem Header="Carbon Lime"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Carbon Lime"/>
+          <MenuItem Header="Ruby Wave"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Ruby Wave"/>
+          <MenuItem Header="Ocean Lab"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Ocean Lab"/>
+          <MenuItem Header="Steel Mono"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Steel Mono"/>
+          <MenuItem Header="Sunset Pop"
+                    Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="Sunset Pop"/>
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="{Binding [MenuHelp]}">
+        <MenuItem Header="{Binding [FeatureReference]}" Command="{Binding ShowHelpCommand}" InputGestureText="F1">
+          <MenuItem.Icon><TextBlock Text="?" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding [TipOfTheDay]}" Command="{Binding ShowTipCommand}">
+          <MenuItem.Icon><TextBlock Text="!" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="{Binding [About]}" Command="{Binding ShowAboutCommand}">
+          <MenuItem.Icon><TextBlock Text="i" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
+      </MenuItem>
+    </Menu>
+
+    <!-- Transport bar -->
+    <transport:TransportBar DockPanel.Dock="Top"
+                            DataContext="{Binding}"
+                            Margin="0,0,0,1"/>
+
+    <!-- Status bar -->
+    <StatusBar DockPanel.Dock="Bottom" Height="24">
+      <StatusBarItem>
+        <TextBlock Text="{Binding StatusText}"/>
+      </StatusBarItem>
+      <Separator/>
+      <StatusBarItem HorizontalAlignment="Right">
+        <TextBlock>
+          <Run Text="{Binding [BpmLabel]}"/><Run Text="{Binding Bpm}"/>
+          <Run Text="{Binding [RowsPerBeatLabel]}"/><Run Text="{Binding RowsPerBeat}"/>
+        </TextBlock>
+      </StatusBarItem>
+    </StatusBar>
+
+    <!-- Main content area -->
+    <Grid Background="{DynamicResource BgDeep}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition x:Name="LeftPanelColumn" Width="200" MinWidth="140" MaxWidth="320"/>
+        <ColumnDefinition Width="4"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Left panel: Instrument browser -->
+      <browser:InstrumentBrowserControl Grid.Column="0"
+                                        DataContext="{Binding InstrumentBrowser}"/>
+
+      <GridSplitter Grid.Column="1"
+                    HorizontalAlignment="Stretch"
+                    DragCompleted="MainSplitter_DragCompleted"/>
+
+      <!-- Right panel: tabbed editors -->
+      <TabControl Grid.Column="2" x:Name="MainTabControl"
+                  Background="{DynamicResource FlStudioPanel}"
+                  BorderThickness="0"
+                  Padding="6,4,6,0">
+
+        <TabItem x:Name="ProjectHubTab" Header="{Binding [TabProjectHub], StringFormat=⌂ {0}}">
+          <ScrollViewer Background="{DynamicResource BgDeep}"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="18">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.15*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="0.85*"/>
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Grid.Column="0">
+                <Border Style="{StaticResource SettingsPanel}" Padding="18" Margin="0,0,0,12">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                      <TextBlock Text="{Binding [SongTitle]}" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Text="{Binding ProjectTitleEdit, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                               FontSize="26"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource AccentLight}"
+                               Padding="8,4"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                      <TextBlock Text="{Binding [Artist]}" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Text="{Binding ProjectArtistEdit, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                               Padding="8,4"/>
+                    </StackPanel>
+                    <UniformGrid Grid.Row="2" Columns="2" Margin="0,16,0,0">
+                      <Border Style="{StaticResource FlPanel}" Padding="12" Margin="0,0,8,8">
+                        <StackPanel>
+                          <TextBlock Text="{Binding [ProjectFormat]}" Style="{StaticResource SettingLabel}"/>
+                          <TextBlock Text="{Binding ProjectFormatLabel}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </Border>
+                      <Border Style="{StaticResource FlPanel}" Padding="12" Margin="8,0,0,8">
+                        <StackPanel>
+                          <TextBlock Text="{Binding [ProjectTiming]}" Style="{StaticResource SettingLabel}"/>
+                          <TextBlock Text="{Binding ProjectTimingLabel}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </Border>
+                      <Border Style="{StaticResource FlPanel}" Padding="12" Margin="0,8,8,0">
+                        <StackPanel>
+                          <TextBlock Text="{Binding [ProjectStructure]}" Style="{StaticResource SettingLabel}"/>
+                          <TextBlock Text="{Binding ProjectStatsLabel}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </Border>
+                      <Border Style="{StaticResource FlPanel}" Padding="12" Margin="8,8,0,0">
+                        <StackPanel>
+                          <TextBlock Text="{Binding [ProjectRestart]}" Style="{StaticResource SettingLabel}"/>
+                          <TextBlock Text="{Binding ProjectRestartLabel}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </Border>
+                    </UniformGrid>
+                  </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}" Padding="16" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [QuickActions]}" Style="{StaticResource SectionTitle}"/>
+                    <UniformGrid Columns="4">
+                      <Button Content="{Binding [Open], StringFormat=⌕ {0}}" Command="{Binding OpenFileCommand}" Margin="0,0,8,8" MinHeight="36"
+                              ToolTip="{Binding [TipHubOpen]}"/>
+                      <Button Content="{Binding [Save], StringFormat=▣ {0}}" Command="{Binding SaveFileCommand}" Margin="0,0,8,8" MinHeight="36"
+                              ToolTip="{Binding [TipHubSave]}"/>
+                      <Button Content="{Binding [ExportTo], StringFormat=⇱ {0}}" Command="{Binding ExportToCommand}" Margin="0,0,8,8" MinHeight="36"
+                              ToolTip="{Binding [TipHubExport]}"/>
+                      <Button Content="{Binding [PlayPause], StringFormat=▶ {0}}" Command="{Binding TogglePlaybackCommand}" Margin="0,0,0,8" MinHeight="36"
+                              ToolTip="{Binding [TipHubPlay]}"/>
+                      <Button Content="{Binding [NewSong], StringFormat=+ {0}}" Command="{Binding NewSongCommand}" Margin="0,0,8,8" MinHeight="36"/>
+                      <Button Content="{Binding [AddTrack], StringFormat=+T {0}}" Command="{Binding AddTrackCommand}" Margin="0,0,8,8" MinHeight="36"/>
+                      <Button Content="{Binding [AddPattern], StringFormat=+P {0}}" Command="{Binding AddPatternCommand}" Margin="0,0,8,8" MinHeight="36"/>
+                      <Button Content="{Binding [AddInstrument], StringFormat=+I {0}}" Command="{Binding AddInstrumentCommand}" Margin="0,0,0,8" MinHeight="36"/>
+                      <Button Content="{Binding [TabSongEditor], StringFormat=▦ {0}}" Click="View_SongEditor" Margin="0,0,8,0" MinHeight="34"/>
+                      <Button Content="{Binding [TabPianoRoll], StringFormat=▤ {0}}" Click="View_PianoRoll" Margin="0,0,8,0" MinHeight="34"/>
+                      <Button Content="{Binding [TabPatternEditor], StringFormat=# {0}}" Click="View_PatternEditor" Margin="0,0,8,0" MinHeight="34"/>
+                      <Button Content="{Binding [FeatureReference], StringFormat=? {0}}" Command="{Binding ShowHelpCommand}" Margin="0" MinHeight="34"/>
+                    </UniformGrid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}" Padding="16">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [ProjectState]}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{Binding ProjectSourceLabel}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding ProjectDirtyLabel}" Foreground="{DynamicResource AccentLight}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding ProjectPlaybackLabel}" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding ProjectExportLabel}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <Border Style="{StaticResource SettingsPanel}" Padding="16" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [Workflow]}" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,4,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="01" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="20" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding [WorkflowLoad]}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="2" Text="{Binding WorkflowLoadState}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Separator Margin="0,9"/>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="02" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="20" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding [WorkflowEdit]}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="2" Text="{Binding WorkflowEditState}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Separator Margin="0,9"/>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="03" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="20" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding [WorkflowPreview]}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="2" Text="{Binding WorkflowPreviewState}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Separator Margin="0,9"/>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="04" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="20" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding [WorkflowExport]}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+                      <TextBlock Grid.Column="2" Text="{Binding WorkflowExportState}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}" Padding="16" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [SessionTools]}" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [Theme]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding ThemeOptions}"
+                                SelectedItem="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [Language]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding LanguageOptions}"
+                                SelectedItem="{Binding SelectedLanguage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [SidToXm]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding SidXmExportModes}"
+                                SelectedItem="{Binding SidXmExportMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                    <UniformGrid Columns="2">
+                      <Button Content="{Binding [SaveConfig], StringFormat=▣ {0}}" Command="{Binding SaveConfigurationCommand}" Margin="0,0,6,0"/>
+                      <Button Content="{Binding [ShowHelpAction], StringFormat=i {0}}" Command="{Binding ShowAboutCommand}" Margin="6,0,0,0"/>
+                    </UniformGrid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}" Padding="16">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [ProfessionalNotes]}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{Binding [ProfessionalNotesBody]}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Grid>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem x:Name="SongEditorTab" Header="{Binding [TabSongEditor], StringFormat=▦ {0}}">
+          <song:SongEditorControl DataContext="{Binding SongEditor}"/>
+        </TabItem>
+
+        <TabItem x:Name="ChannelRackTab" Header="{Binding [TabChannelRack], StringFormat=☰ {0}}">
+          <channelRack:ChannelRackControl DataContext="{Binding ChannelRack}"/>
+        </TabItem>
+
+        <TabItem x:Name="AutomationTab" Header="{Binding [TabAutomation], StringFormat=↯ {0}}">
+          <automation:AutomationEditorControl DataContext="{Binding Automation}"/>
+        </TabItem>
+
+        <TabItem x:Name="MixerTab" Header="{Binding [TabMixer], StringFormat=◧ {0}}">
+          <Grid Background="{DynamicResource BgDeep}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Margin="12,10,12,8" Padding="12"
+                    Style="{StaticResource FlMixerStrip}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="160"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="520"/>
+                  <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding [Master]}" Grid.Column="0"
+                           Foreground="{DynamicResource TextPrimary}"
+                           FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1">
+                  <Slider Minimum="0" Maximum="1"
+                          PreviewMouseLeftButtonDown="MixerSlider_PreviewMouseLeftButtonDown"
+                          PreviewMouseLeftButtonUp="MixerSlider_PreviewMouseLeftButtonUp"
+                          Value="{Binding MasterVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          VerticalAlignment="Center"/>
+                  <ProgressBar Minimum="0" Maximum="1" Height="5" Margin="0,6,0,0"
+                               Foreground="#59D98E"
+                               Value="{Binding MasterMeterLevel, Mode=OneWay}"/>
+                </StackPanel>
+                <Border Grid.Column="2" Height="122" Margin="14,0,12,0" Padding="10,8"
+                        Background="#FF15111F" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                        CornerRadius="6">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="16"/>
+                      <RowDefinition Height="*"/>
+                      <RowDefinition Height="16"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0">
+                      <TextBlock Text="{Binding SpectrumAnalyzerMode}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="11" FontWeight="Bold"/>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding [AnalyzerRangeShort]}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" FontSize="10"/>
+                    </DockPanel>
+                    <Grid Grid.Row="1">
+                      <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                      </Grid.RowDefinitions>
+                      <Border Grid.Row="0" BorderBrush="#244B5F8A" BorderThickness="0,0,0,1"/>
+                      <Border Grid.Row="1" BorderBrush="#224B5F8A" BorderThickness="0,0,0,1"/>
+                      <Border Grid.Row="2" BorderBrush="#204B5F8A" BorderThickness="0,0,0,1"/>
+                      <ItemsControl Grid.RowSpan="4" ItemsSource="{Binding SpectrumBands}" VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Canvas Width="10" Height="96" Margin="1,0" VerticalAlignment="Bottom">
+                              <Border Canvas.Bottom="0"
+                                      Width="10"
+                                      Height="{Binding GlowHeight}"
+                                      Opacity="{Binding GlowOpacity}"
+                                      CornerRadius="5"
+                                      Background="#2439A8FF"/>
+                              <Border Canvas.Bottom="0"
+                                      Width="8"
+                                      Height="{Binding BarHeight}"
+                                      CornerRadius="3"
+                                      Background="{Binding BarBrush}">
+                                <Border.Effect>
+                                  <DropShadowEffect BlurRadius="9" ShadowDepth="0" Color="#59D98E" Opacity="{Binding GlowOpacity}"/>
+                                </Border.Effect>
+                              </Border>
+                              <Border Canvas.Bottom="{Binding PeakHeight}"
+                                      Width="10"
+                                      Height="2"
+                                      CornerRadius="1"
+                                      Background="#F7FBFF"/>
+                            </Canvas>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Grid>
+                    <ItemsControl Grid.Row="2" ItemsSource="{Binding SpectrumBands}" HorizontalAlignment="Center">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <TextBlock Width="12"
+                                     Text="{Binding FrequencyLabel}"
+                                     Visibility="{Binding ShowFrequencyLabel, Converter={StaticResource BoolToVisibility}}"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     FontFamily="Consolas"
+                                     FontSize="8"
+                                     TextAlignment="Center"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
+                <TextBlock Grid.Column="3" Text="{Binding MasterMeterLevel, StringFormat=Peak {0:0.000}}"
+                           Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"
+                           Visibility="{Binding ShowAdvancedMixerReadouts, Converter={StaticResource BoolToVisibility}}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding SongEditor.Tracks}" Margin="12,0,12,12">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Style="{StaticResource FlMixerStrip}" Padding="10" Margin="0,0,0,7">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="210"/>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="150"/>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28"/>
+                            <ColumnDefinition Width="*"/>
+                          </Grid.ColumnDefinitions>
+                          <Border Width="23" Height="46" Background="{DynamicResource BgControl}"
+                                  BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                                  CornerRadius="5"
+                                  VerticalAlignment="Center">
+                            <TextBlock Text="{Binding InstrumentIndex}" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource AccentLight}"
+                                       FontFamily="Consolas"/>
+                          </Border>
+                        <StackPanel Grid.Column="1">
+                          <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                   Padding="6,4" FontWeight="Bold"/>
+                         <TextBlock Text="{Binding InstrumentIndex, StringFormat=Instrument {0}}"
+                                    Foreground="{DynamicResource TextSecondary}" Margin="0,6,0,0"/>
+                         <TextBlock Text="{Binding EffectSummary}"
+                                    Foreground="#C9A95A" FontFamily="Consolas"
+                                    FontSize="11" Margin="0,4,0,0"
+                                    TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" Margin="12,0">
+                          <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="{Binding DataContext[Volume], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{Binding Volume, StringFormat={}{0:0}}" DockPanel.Dock="Right"
+                                       Foreground="#A8B7D8" FontFamily="Consolas"/>
+                          </DockPanel>
+                          <Slider Minimum="0" Maximum="128"
+                                  PreviewMouseLeftButtonDown="MixerSlider_PreviewMouseLeftButtonDown"
+                                  PreviewMouseLeftButtonUp="MixerSlider_PreviewMouseLeftButtonUp"
+                                  Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                           <ProgressBar Minimum="0" Maximum="1" Height="13" Margin="0,6,0,0"
+                                        Foreground="#59D98E"
+                                        Value="{Binding MeterLevel, Mode=OneWay}"/>
+                          <TextBlock Text="{Binding MeterLevel, StringFormat=VU {0:0.000}}"
+                                     Foreground="#59D98E" FontFamily="Consolas"
+                                     Visibility="{Binding DataContext.ShowAdvancedMixerReadouts, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                                     FontSize="10" Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Margin="12,0">
+                          <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="{Binding DataContext[Pan], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{Binding Panning, StringFormat={}{0:0}}" DockPanel.Dock="Right"
+                                       Foreground="#A8B7D8" FontFamily="Consolas"/>
+                          </DockPanel>
+                          <Slider Minimum="0" Maximum="255"
+                                  PreviewMouseLeftButtonDown="MixerSlider_PreviewMouseLeftButtonDown"
+                                  PreviewMouseLeftButtonUp="MixerSlider_PreviewMouseLeftButtonUp"
+                                  Value="{Binding Panning, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+
+                        <ToggleButton Grid.Column="3" Content="M" Width="36" Height="28" Margin="12,16,6,0"
+                                      IsChecked="{Binding Muted, Mode=TwoWay}"/>
+                        <ToggleButton Grid.Column="4" Content="S" Width="36" Height="28" Margin="6,16,0,0"
+                                      IsChecked="{Binding Solo, Mode=TwoWay}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </TabItem>
+
+        <TabItem x:Name="AnalyzerTab" Header="{Binding [TabAnalyzer], StringFormat=▥ {0}}">
+          <Grid Background="{DynamicResource BgDeep}" Margin="14">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource SettingsPanel}" Padding="14" Margin="0,0,0,12">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="220"/>
+                  <ColumnDefinition Width="180"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="{Binding [ProfessionalAnalyzer], StringFormat=▥ {0}}" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Text="{Binding [ProfessionalAnalyzerBody]}"
+                             Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                  <TextBlock Text="{Binding [AnalyzerMode]}" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <ComboBox Width="180"
+                            ItemsSource="{Binding SpectrumAnalyzerModes}"
+                            SelectedItem="{Binding SpectrumAnalyzerMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                  <TextBlock Text="{Binding [Peak]}" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <TextBlock Text="{Binding MasterMeterLevel, StringFormat={}{0:0.000}}"
+                             Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontSize="18" FontWeight="Bold"/>
+                </StackPanel>
+                <Button Grid.Column="3" Content="{Binding [SwitchView], StringFormat=▥ {0}}" HorizontalAlignment="Right" MinWidth="140"
+                        Click="SpectrumPreview_MouseLeftButtonUp"/>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource SettingsPanel}" Padding="18">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="22"/>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="24"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                  <TextBlock Text="{Binding SpectrumAnalyzerMode}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" FontWeight="Bold"/>
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding [AnalyzerRangeInfo]}"
+                             Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"/>
+                </DockPanel>
+                <Grid Grid.Row="1" Margin="0,8,0,6">
+                  <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                  </Grid.RowDefinitions>
+                  <Border Grid.Row="0" BorderBrush="#244B5F8A" BorderThickness="0,0,0,1"/>
+                  <Border Grid.Row="1" BorderBrush="#224B5F8A" BorderThickness="0,0,0,1"/>
+                  <Border Grid.Row="2" BorderBrush="#204B5F8A" BorderThickness="0,0,0,1"/>
+                  <Border Grid.Row="3" BorderBrush="#1C4B5F8A" BorderThickness="0,0,0,1"/>
+                  <Border Grid.Row="4" BorderBrush="#184B5F8A" BorderThickness="0,0,0,1"/>
+                  <ItemsControl Grid.RowSpan="6" ItemsSource="{Binding SpectrumBands}" VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Canvas Width="16" Height="260" Margin="2,0" VerticalAlignment="Bottom">
+                          <Border Canvas.Bottom="0" Width="16" Height="{Binding AnalyzerGlowHeight}" Opacity="{Binding GlowOpacity}" CornerRadius="5" Background="#2439A8FF"/>
+                          <Border Canvas.Bottom="0" Width="12" Height="{Binding AnalyzerBarHeight}" CornerRadius="4" Background="{Binding BarBrush}">
+                            <Border.Effect>
+                              <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="#59D98E" Opacity="{Binding GlowOpacity}"/>
+                            </Border.Effect>
+                          </Border>
+                          <Border Canvas.Bottom="{Binding AnalyzerPeakHeight}" Width="16" Height="2" CornerRadius="1" Background="#F7FBFF"/>
+                        </Canvas>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Grid>
+                <ItemsControl Grid.Row="2" ItemsSource="{Binding SpectrumBands}" HorizontalAlignment="Center">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Width="20" Text="{Binding FrequencyLabel}"
+                                 Visibility="{Binding ShowFrequencyLabel, Converter={StaticResource BoolToVisibility}}"
+                                 Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" FontSize="9"
+                                 TextAlignment="Center"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </Border>
+
+            <UniformGrid Grid.Row="2" Columns="3" Margin="0,12,0,0">
+              <Border Style="{StaticResource SettingsPanel}" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Text="{Binding [Input]}" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Text="{Binding SourceFormatLabel}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource SettingsPanel}" Margin="4,0">
+                <StackPanel>
+                  <TextBlock Text="{Binding [ProjectTiming]}" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Text="{Binding TransportTimeLabel}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource SettingsPanel}" Margin="8,0,0,0">
+                <StackPanel>
+                  <TextBlock Text="{Binding [Output]}" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Text="{Binding SelectedAudioOutputDevice}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+          </Grid>
+        </TabItem>
+
+        <TabItem x:Name="PianoRollTab" Header="{Binding [TabPianoRoll], StringFormat=▤ {0}}">
+          <piano:PianoRollControl DataContext="{Binding PianoRoll}"/>
+        </TabItem>
+
+        <TabItem x:Name="PatternEditorTab" Header="{Binding [TabPatternEditor], StringFormat=# {0}}">
+          <pattern:PatternEditorControl DataContext="{Binding PatternEditor}"/>
+        </TabItem>
+
+        <TabItem x:Name="SettingsTab" Header="{Binding [TabSettings], StringFormat=⚙ {0}}">
+          <ScrollViewer Background="{DynamicResource BgDeep}"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="16">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Grid.Column="0">
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [Appearance]}" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [Theme]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding ThemeOptions}"
+                                SelectedItem="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipTheme]}"/>
+                    </Grid>
+                    <CheckBox Content="{Binding [GlossyControls]}"
+                              IsChecked="{Binding ShowUiShine, Mode=TwoWay}"
+                              ToolTip="{Binding [TipGlossyControls]}"/>
+                    <CheckBox Content="{Binding [PanelShadows]}"
+                              IsChecked="{Binding ShowPanelShadows, Mode=TwoWay}"
+                              ToolTip="{Binding [TipPanelShadows]}"/>
+                    <CheckBox Content="{Binding [OldschoolEffects]}"
+                              IsChecked="{Binding ShowOldschoolAboutEffects, Mode=TwoWay}"
+                              ToolTip="{Binding [TipOldschoolEffects]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [WorkspaceDensity]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding WorkspaceDensityOptions}"
+                                SelectedItem="{Binding WorkspaceDensity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipWorkspaceDensity]}"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [ToolbarButtons]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding ToolbarButtonSizeOptions}"
+                                SelectedItem="{Binding ToolbarButtonSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipToolbarButtons]}"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [Language]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding LanguageOptions}"
+                                SelectedItem="{Binding SelectedLanguage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipLanguage]}"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="80"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [ToolTipDelay]}" Style="{StaticResource SettingLabel}"/>
+                      <Slider Grid.Column="1" Minimum="0" Maximum="5000" TickFrequency="250" IsSnapToTickEnabled="True"
+                              Value="{Binding ToolTipInitialDelayMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipTooltipDelay]}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding ToolTipInitialDelayMs, StringFormat={}{0}ms}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="80"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [ToolTipDuration]}" Style="{StaticResource SettingLabel}"/>
+                      <Slider Grid.Column="1" Minimum="1000" Maximum="60000" TickFrequency="1000" IsSnapToTickEnabled="True"
+                              Value="{Binding ToolTipDurationMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipTooltipDuration]}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding ToolTipDurationMs, StringFormat={}{0}ms}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [Transport]}" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="{Binding [ResetStopRestart]}"
+                              IsChecked="{Binding PreferRestartOnStop, Mode=TwoWay}"
+                              ToolTip="{Binding [TipRestartStop]}"/>
+                    <CheckBox Content="{Binding [StartRestartOrder]}"
+                              IsEnabled="{Binding CanStartAtRestartOrder}"
+                              IsChecked="{Binding StartAtRestartOrder, Mode=TwoWay}"
+                              ToolTip="{Binding [TipStartRestart]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="80"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [BpmShort]}" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Grid.Column="1" Text="{Binding Bpm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center"
+                               ToolTip="{Binding [TipBpm]}"/>
+                      <TextBlock Grid.Column="3" Text="{Binding [RowsPerBeat]}" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Grid.Column="4" Text="{Binding RowsPerBeat, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center"
+                               ToolTip="{Binding [TipRowsPerBeat]}"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [AudioOutput]}" Style="{StaticResource SectionTitle}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [OutputDevice]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding AudioOutputDevices}"
+                                SelectedItem="{Binding SelectedAudioOutputDevice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipOutputDevice]}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [SampleRate]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding AudioSampleRates}"
+                                SelectedItem="{Binding AudioSampleRate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipSampleRate]}"/>
+                    </Grid>
+                    <DockPanel Margin="0,0,0,8">
+                      <TextBlock Text="{Binding [Latency]}" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right"
+                                 Text="{Binding AudioLatencyMs, StringFormat={}{0}ms}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="40" Maximum="1000" TickFrequency="20" IsSnapToTickEnabled="True"
+                              Value="{Binding AudioLatencyMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipLatency]}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,8">
+                      <TextBlock Text="{Binding [Buffers]}" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right"
+                                 Text="{Binding AudioBufferCount}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="2" Maximum="8" TickFrequency="1" IsSnapToTickEnabled="True"
+                              Value="{Binding AudioBufferCount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipBuffers]}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Content="{Binding [Apply]}" Width="96" Margin="8,0,0,0"
+                              Command="{Binding ApplyAudioSettingsCommand}"/>
+                      <Button DockPanel.Dock="Right" Content="{Binding [Refresh]}" Width="96"
+                              Command="{Binding RefreshAudioDevicesCommand}"/>
+                    </DockPanel>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [TabPianoRoll]}" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="{Binding [SoloPianoRoll]}"
+                              IsChecked="{Binding SoloSelectedPianoRollChannel, Mode=TwoWay}"
+                              ToolTip="{Binding [TipSoloPianoRoll]}"/>
+                    <CheckBox Content="{Binding [AutoOpenPianoRoll]}"
+                              IsChecked="{Binding AutoOpenPianoRollOnClipSelect, Mode=TwoWay}"
+                              ToolTip="{Binding [TipAutoOpenPianoRoll]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [PreviewNotes]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding NotePreviewModes}"
+                                SelectedItem="{Binding NotePreviewMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipPreviewNotes]}"/>
+                    </Grid>
+                    <CheckBox Margin="0,8,0,0"
+                              Content="{Binding [TypingKeyboard]}"
+                              IsChecked="{Binding PianoRollTypingKeyboardEnabled, Mode=TwoWay}"
+                              ToolTip="{Binding [TipTypingKeyboard]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [KeyboardBase]}" Style="{StaticResource SettingLabel}"/>
+                      <DockPanel Grid.Column="1">
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding PianoRollTypingKeyboardBaseNote}"
+                                   Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                        <Slider Minimum="24" Maximum="72" TickFrequency="1" IsSnapToTickEnabled="True"
+                                Value="{Binding PianoRollTypingKeyboardBaseNote, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipKeyboardBase]}"/>
+                      </DockPanel>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [KeyboardVelocity]}" Style="{StaticResource SettingLabel}"/>
+                      <DockPanel Grid.Column="1">
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding PianoRollTypingKeyboardVelocity}"
+                                   Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                        <Slider Minimum="1" Maximum="127" TickFrequency="1" IsSnapToTickEnabled="True"
+                                Value="{Binding PianoRollTypingKeyboardVelocity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipKeyboardVelocity]}"/>
+                      </DockPanel>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [MidiPatternDefault]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding MidiExportPatternDefaults}"
+                                SelectedItem="{Binding MidiExportPatternDefault, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipMidiPatternDefault]}"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [MixerVisualizer]}" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="{Binding [DetailedMixerReadouts]}"
+                              IsChecked="{Binding ShowAdvancedMixerReadouts, Mode=TwoWay}"
+                              ToolTip="{Binding [TipMixerReadouts]}"/>
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [AnalyzerMode]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding SpectrumAnalyzerModes}"
+                                SelectedItem="{Binding SpectrumAnalyzerMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipAnalyzerMode]}"/>
+                    </Grid>
+                    <DockPanel Margin="0,0,0,8">
+                      <TextBlock Text="{Binding [Intensity]}" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right"
+                                 Text="{Binding VisualizerIntensity, StringFormat={}{0:0.00}x}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="0.25" Maximum="2.5"
+                              Value="{Binding VisualizerIntensity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipVisualizerIntensity]}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <TextBlock Text="{Binding [PeakHold]}" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right"
+                                 Text="{Binding VisualizerPeakHold, StringFormat={}{0:0.000}}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="0.70" Maximum="0.995"
+                              Value="{Binding VisualizerPeakHold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipPeakHold]}"/>
+                    </DockPanel>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [ModuleSupport]}" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="{Binding [ModuleDiagnostics]}"
+                              IsChecked="{Binding ShowModuleDiagnostics, Mode=TwoWay}"
+                              ToolTip="{Binding [TipModuleDiagnostics]}"/>
+                    <CheckBox Content="{Binding [WarnNativeExport]}"
+                              IsChecked="{Binding ConfirmNativeExportLimitations, Mode=TwoWay}"
+                              ToolTip="{Binding [TipNativeExportWarn]}"/>
+                    <CheckBox Content="{Binding [UseSongLengthDb]}"
+                              IsChecked="{Binding PreferSongLengthDatabase, Mode=TwoWay}"
+                              ToolTip="{Binding [TipSongLengthDb]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [SidToXm]}" Style="{StaticResource SettingLabel}"/>
+                      <ComboBox Grid.Column="1"
+                                ItemsSource="{Binding SidXmExportModes}"
+                                SelectedItem="{Binding SidXmExportMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="{Binding [TipSidToXm]}"/>
+                    </Grid>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="64"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [ChipRenderTail]}" Style="{StaticResource SettingLabel}"/>
+                      <Slider Grid.Column="1" Minimum="0" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True"
+                              Value="{Binding ChipRenderTailSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="{Binding [TipChipTail]}"/>
+                      <TextBlock Grid.Column="2"
+                                 Text="{Binding ChipRenderTailSeconds, StringFormat={}{0}s}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"
+                                 HorizontalAlignment="Right"/>
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
+                               Visibility="{Binding ShowModuleDiagnostics, Converter={StaticResource BoolToVisibility}}"
+                               Text="{Binding [ModuleSupportNote]}"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [Configuration]}" Style="{StaticResource SectionTitle}"/>
+                    <UniformGrid Columns="2">
+                      <Button Content="{Binding [SaveConfig], StringFormat=▣ {0}}" Margin="0,0,6,6"
+                              Command="{Binding SaveConfigurationCommand}"
+                              ToolTip="{Binding [TipSaveConfig]}"/>
+                      <Button Content="{Binding [LoadConfig], StringFormat=⌕ {0}}" Margin="0,0,0,6"
+                              Command="{Binding LoadConfigurationCommand}"
+                              ToolTip="{Binding [TipLoadConfig]}"/>
+                      <Button Content="{Binding [ExportConfig], StringFormat=⇱ {0}}" Margin="0,0,6,6"
+                              Command="{Binding ExportConfigurationCommand}"
+                              ToolTip="{Binding [TipExportConfig]}"/>
+                      <Button Content="{Binding [ImportConfig], StringFormat=⇲ {0}}" Margin="0,0,0,6"
+                              Command="{Binding ImportConfigurationCommand}"
+                              ToolTip="{Binding [TipImportConfig]}"/>
+                    </UniformGrid>
+                    <Button Content="{Binding [ResetDefaults], StringFormat=↺ {0}}"
+                            Command="{Binding ResetConfigurationCommand}"
+                            ToolTip="{Binding [TipResetDefaults]}"/>
+                    <Button Content="{Binding [RegisterOpenWith], StringFormat=↗ {0}}"
+                            Command="{Binding RegisterOpenWithCommand}"
+                            Margin="0,6,0,0"
+                            ToolTip="{Binding [TipRegisterOpenWith]}"/>
+                    <CheckBox Content="{Binding [ShowTipsStartup]}"
+                              IsChecked="{Binding ShowTipsOnStartup, Mode=TwoWay}"
+                              ToolTip="{Binding [TipShowStartup]}"/>
+                    <CheckBox Content="{Binding [AutoSaveConfig]}"
+                              IsChecked="{Binding AutoSaveConfigurationOnExit, Mode=TwoWay}"
+                              ToolTip="{Binding [TipAutoSaveConfig]}"/>
+                    <DockPanel Margin="0,8,0,0">
+                      <TextBlock Text="{Binding [HelpTextScale]}" Style="{StaticResource SettingLabel}" Width="150"/>
+                      <TextBlock DockPanel.Dock="Right"
+                                 Text="{Binding HelpTextScale, StringFormat={}{0:0.00}x}"
+                                 Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                      <Slider Minimum="0.8" Maximum="1.6"
+                              Value="{Binding HelpTextScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                    <TextBlock Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"
+                               Margin="0,8,0,0"
+                               Text="{Binding [ConfigurationNote]}"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SettingsPanel}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding [Diagnostics]}" Style="{StaticResource SectionTitle}"/>
+                    <CheckBox Content="{Binding [VerboseLogging]}"
+                              IsChecked="{Binding VerboseLogging, Mode=TwoWay}"
+                              ToolTip="{Binding [TipVerboseLogging]}"/>
+                    <CheckBox Content="{Binding [DependencyLogging]}"
+                              IsChecked="{Binding LogDependencyLoadDetails, Mode=TwoWay}"
+                              ToolTip="{Binding [TipDependencyLogging]}"/>
+                    <Grid Margin="0,8,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding [LogDirectory]}" Style="{StaticResource SettingLabel}"/>
+                      <TextBox Grid.Column="1"
+                               Text="{Binding LogDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               ToolTip="{Binding [TipLogDirectory]}"/>
+                    </Grid>
+                    <DockPanel Margin="0,8,0,0">
+                      <Button DockPanel.Dock="Right" Content="{Binding [OpenFolder]}" Width="96" Margin="8,0,0,0"
+                              Command="{Binding OpenLogFolderCommand}"/>
+                      <Button DockPanel.Dock="Right" Content="{Binding [ApplyLogging]}" Width="108"
+                              Command="{Binding ApplyLogSettingsCommand}"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap"
+                               Margin="0,8,0,0"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Grid>
+          </ScrollViewer>
+        </TabItem>
+
+      </TabControl>
+    </Grid>
+
+  </DockPanel>
+</Window>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>amChipper.Core</RootNamespace>
+    <AssemblyName>amChipper.Core</AssemblyName>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Persistence\ChipTuneFile.cs" />
+    <Compile Remove="Persistence\InternalChipRenderer.cs" />
+    <Compile Remove="Persistence\NativeChipModuleFile.cs" />
+    <Compile Remove="Persistence\XmModuleExporter.cs" />
+  </ItemGroup>
+</Project>

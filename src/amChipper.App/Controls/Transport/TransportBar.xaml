@@ -1,0 +1,95 @@
+<UserControl x:Class="amChipper.App.Controls.Transport.TransportBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="50"
+             Background="{DynamicResource FlStudioChrome}">
+
+  <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+          Background="{DynamicResource FlStudioChrome}">
+    <DockPanel LastChildFill="True" Margin="8,5">
+
+      <!-- Transport buttons -->
+      <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="BtnPlay" Content="▶" Width="38" Height="34" Margin="0,0,4,0"
+                FontSize="15" ToolTip="{Binding [PlayPause]}" Command="{Binding PlayCommand}"/>
+        <Button Content="Ⅱ" Width="38" Height="34" Margin="0,0,4,0"
+                FontSize="15" ToolTip="{Binding [PlayPause]}" Command="{Binding PauseCommand}"/>
+        <Button Content="■" Width="38" Height="34" Margin="0,0,10,0"
+                FontSize="14" ToolTip="{Binding [Stop]}" Command="{Binding StopCommand}"/>
+      </StackPanel>
+
+      <Border DockPanel.Dock="Left" Style="{StaticResource FlPanel}" Padding="8,4" Margin="0,0,8,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="{Binding [PatternAbbrev]}" VerticalAlignment="Center"
+                     Foreground="{DynamicResource AccentLight}" FontSize="10" FontWeight="Bold" Margin="0,0,6,0"/>
+          <ComboBox Width="104" VerticalAlignment="Center"
+                    ItemsSource="{Binding PlaybackScopes}"
+                    SelectedItem="{Binding PlaybackScope, Mode=TwoWay}"/>
+        </StackPanel>
+      </Border>
+
+      <Border DockPanel.Dock="Left" Style="{StaticResource FlPanel}" Padding="8,4" Margin="0,0,8,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="{Binding [BpmShort]}" VerticalAlignment="Center"
+                     Foreground="{DynamicResource TextSecondary}" Margin="0,0,5,0"/>
+          <TextBox Width="60" VerticalAlignment="Center"
+                   Text="{Binding Bpm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   FontFamily="Consolas" FontSize="15" FontWeight="Bold" TextAlignment="Center"/>
+          <TextBlock Text="{Binding [RpbShort]}" VerticalAlignment="Center"
+                     Foreground="{DynamicResource TextSecondary}" Margin="10,0,5,0"
+                     ToolTip="{Binding [RowsPerBeat]}"/>
+          <TextBox Width="42" VerticalAlignment="Center"
+                   Text="{Binding RowsPerBeat, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   FontFamily="Consolas" FontSize="14" FontWeight="Bold" TextAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <Border DockPanel.Dock="Left" Style="{StaticResource FlPanel}" Padding="8,4" Margin="0,0,8,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Border CornerRadius="10" Width="11" Height="11" Margin="0,0,6,0"
+                  ToolTip="{Binding PlaybackState}">
+            <Border.Style>
+              <Style TargetType="Border">
+                <Setter Property="Background" Value="#FF4A4358"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding PlaybackState}" Value="Playing">
+                    <Setter Property="Background" Value="#FF44FF77"/>
+                    <Setter Property="Effect" Value="{DynamicResource NeonGlow}"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding PlaybackState}" Value="Paused">
+                    <Setter Property="Background" Value="#FFFFCC00"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding PlaybackState}" Value="Recording">
+                    <Setter Property="Background" Value="#FFFF3B62"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+          </Border>
+          <TextBlock Text="{Binding TransportTimeLabel}" VerticalAlignment="Center"
+                     Foreground="{DynamicResource TextPrimary}" FontFamily="Consolas"
+                     FontSize="17" FontWeight="Bold" Margin="0,0,10,0"/>
+          <TextBlock Text="{Binding RuntimeBpmLabel}" VerticalAlignment="Center"
+                     Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"
+                     Margin="0,0,10,0"/>
+        </StackPanel>
+      </Border>
+
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+        <CheckBox Content="{Binding [Restart]}" Margin="0,0,8,0" VerticalAlignment="Center"
+                  Foreground="{DynamicResource TextSecondary}"
+                  IsEnabled="{Binding CanStartAtRestartOrder}"
+                  IsChecked="{Binding StartAtRestartOrder, Mode=TwoWay}"
+                  ToolTip="{Binding RestartOrderLabel}"/>
+        <ComboBox Width="142" VerticalAlignment="Center"
+                  ItemsSource="{Binding ThemeOptions}"
+                  SelectedItem="{Binding SelectedTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+      </StackPanel>
+
+      <TextBlock Text="{Binding SourceFormatLabel}" VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"
+                 TextTrimming="CharacterEllipsis" Margin="6,0,10,0"/>
+
+    </DockPanel>
+  </Border>
+</UserControl>

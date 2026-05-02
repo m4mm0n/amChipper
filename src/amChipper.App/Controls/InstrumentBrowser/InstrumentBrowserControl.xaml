@@ -1,0 +1,306 @@
+<UserControl x:Class="amChipper.App.Controls.InstrumentBrowser.InstrumentBrowserControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgPanel}">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="24"/>  <!-- label -->
+      <RowDefinition Height="*"/>   <!-- instrument list -->
+      <RowDefinition Height="4"/>   <!-- splitter -->
+      <RowDefinition Height="120"/> <!-- sample list -->
+      <RowDefinition Height="260"/> <!-- instrument editor -->
+      <RowDefinition Height="32"/>  <!-- buttons -->
+    </Grid.RowDefinitions>
+
+    <!-- Header label -->
+    <Border Grid.Row="0" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+      <TextBlock Text="{Binding DataContext[Instrument], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=▧ {0}}" Margin="8,0"
+                 VerticalAlignment="Center" FontSize="10"
+                 Foreground="{DynamicResource TextSecondary}"
+                 FontWeight="SemiBold" FontFamily="Segoe UI"/>
+    </Border>
+
+    <!-- Instrument list -->
+    <ListBox Grid.Row="1"
+             ItemsSource="{Binding Instruments}"
+             SelectedItem="{Binding SelectedInstrument, Mode=TwoWay}"
+             BorderThickness="0"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal">
+            <!-- Accent colour chip (uint→Color converter omitted for brevity) -->
+            <Border Width="5" Height="12" CornerRadius="1" Margin="0,0,6,0"
+                    Background="{DynamicResource Accent}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                       FontFamily="Segoe UI" FontSize="12"/>
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <GridSplitter Grid.Row="2" Height="4" HorizontalAlignment="Stretch"/>
+
+    <!-- Sample list header -->
+    <Border Grid.Row="3" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="22"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="{Binding DataContext[Samples], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=▤ {0}}" Margin="8,0"
+                   VerticalAlignment="Center" FontSize="10"
+                   Foreground="{DynamicResource TextSecondary}"
+                   FontWeight="SemiBold" FontFamily="Segoe UI"/>
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding Samples}"
+                 SelectedItem="{Binding SelectedSample, Mode=TwoWay}"
+                 BorderThickness="0"
+                 Background="{DynamicResource BgPanel}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Name}"
+                         FontFamily="Consolas" FontSize="11"/>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <!-- Buttons -->
+    <Border Grid.Row="4" Background="{DynamicResource BgPanel}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="8,6">
+          <TextBlock Text="{Binding DataContext[InstrumentLab], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=⚒ {0}}" FontSize="10" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextSecondary}"/>
+          <TextBox Margin="0,6,0,6"
+                   Text="{Binding SelectedInstrument.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   ToolTip="{Binding DataContext[TipInstrumentName], RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+          <TabControl MinHeight="205">
+            <TabItem Header="{Binding DataContext[Sample], RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Margin="8">
+                <TextBlock Text="{Binding DataContext[Source], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="10"/>
+                <ComboBox ItemsSource="{Binding SourceTypeOptions}"
+                          SelectedItem="{Binding SelectedInstrument.SourceType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="{Binding DataContext[Wave], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="10" Margin="0,6,0,0"/>
+                <ComboBox ItemsSource="{Binding WaveformOptions}"
+                          SelectedItem="{Binding SelectedInstrument.Waveform, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Grid Margin="0,8,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="38"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Root], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="127" TickFrequency="1" IsSnapToTickEnabled="True"
+                          Value="{Binding SelectedInstrument.RootNote, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.RootNote}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="38"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Fine], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="-1200" Maximum="1200" TickFrequency="10"
+                          Value="{Binding SelectedInstrument.FineTuneCents, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.FineTuneCents}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="38"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Pulse], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0.05" Maximum="0.95"
+                          Value="{Binding SelectedInstrument.PulseWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.PulseWidth, StringFormat={}{0:0.00}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding DataContext[EnvelopeShort], RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Margin="8">
+                <CheckBox Content="{Binding DataContext[VolumeEnvelope], RelativeSource={RelativeSource AncestorType=Window}}"
+                          IsChecked="{Binding SelectedInstrument.VolumeEnvelopeEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Grid Margin="0,8,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Delay], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="2000" TickFrequency="5"
+                          Value="{Binding SelectedInstrument.DelayMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.DelayMs}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,4,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[AttackShort], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="2000" TickFrequency="5"
+                          Value="{Binding SelectedInstrument.AttackMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.AttackMs}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,4,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Hold], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="4000" TickFrequency="5"
+                          Value="{Binding SelectedInstrument.HoldMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.HoldMs}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,4,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[ReleaseShort], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="4000" TickFrequency="5"
+                          Value="{Binding SelectedInstrument.ReleaseMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.ReleaseMs}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding DataContext[FunctionShort], RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Margin="8">
+                <StackPanel Orientation="Horizontal">
+                  <CheckBox Content="{Binding DataContext[Mono], RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,0,12,0"
+                            IsChecked="{Binding SelectedInstrument.Mono, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <CheckBox Content="{Binding DataContext[Porta], RelativeSource={RelativeSource AncestorType=Window}}"
+                            IsChecked="{Binding SelectedInstrument.Porta, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <Grid Margin="0,8,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="76"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Poly], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True"
+                          Value="{Binding SelectedInstrument.MaxPolyphony, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.MaxPolyphony}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="76"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[LfoAmount], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="12"
+                          Value="{Binding SelectedInstrument.LfoAmount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.LfoAmount, StringFormat={}{0:0.0}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="76"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[LfoHz], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="32"
+                          Value="{Binding SelectedInstrument.LfoSpeedHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.LfoSpeedHz, StringFormat={}{0:0.0}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="76"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[ArpRange], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True"
+                          Value="{Binding SelectedInstrument.ArpRange, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.ArpRange}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{Binding DataContext[FxTab], RelativeSource={RelativeSource AncestorType=Window}}">
+              <StackPanel Margin="8">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="82"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[EchoFeedback], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="0.98"
+                          Value="{Binding SelectedInstrument.EchoFeedback, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.EchoFeedback, StringFormat={}{0:0.00}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="82"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[EchoTime], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="2000"
+                          Value="{Binding SelectedInstrument.EchoTimeMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.EchoTimeMs}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="82"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Cutoff], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                          Value="{Binding SelectedInstrument.FilterCutoff, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.FilterCutoff, StringFormat={}{0:0.00}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="82"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding DataContext[Resonance], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"/>
+                  <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                          Value="{Binding SelectedInstrument.FilterResonance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding SelectedInstrument.FilterResonance, StringFormat={}{0:0.00}}" Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"/>
+                </Grid>
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+
+          <Button Content="{Binding DataContext[ApplyInstrument], RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,6,0,0" Height="24"
+                  Command="{Binding ApplyInstrumentSettingsCommand}"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <Border Grid.Row="5" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+            Padding="4,4">
+      <StackPanel Orientation="Horizontal">
+        <Button Content="{Binding DataContext[AddInstrumentShort], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=+ {0}}"   Width="58" Margin="2,0"
+                Command="{Binding DataContext.AddInstrumentCommand,
+                          RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Button Content="{Binding DataContext[ImportSample], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0} ♪}" Width="62" Margin="2,0"
+                Command="{Binding ImportSampleCommand}"/>
+        <Button Content="✕"        Width="26" Margin="2,0"
+                Command="{Binding DeleteInstrumentCommand}"
+                ToolTip="{Binding DataContext[TipDeleteInstrument], RelativeSource={RelativeSource AncestorType=Window}}"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

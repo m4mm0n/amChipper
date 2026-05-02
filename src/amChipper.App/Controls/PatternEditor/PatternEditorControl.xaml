@@ -1,0 +1,65 @@
+<UserControl x:Class="amChipper.App.Controls.PatternEditor.PatternEditorControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:amChipper.App.Controls.PatternEditor"
+             Background="{DynamicResource BgPanel}"
+             Focusable="True"
+             KeyDown="OnKeyDown">
+
+  <UserControl.InputBindings>
+    <KeyBinding Key="D" Modifiers="Control" Command="{Binding DuplicatePatternCommand}"/>
+  </UserControl.InputBindings>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="32"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+    <Border Grid.Row="0" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+
+        <Button Content="{Binding DataContext[Previous], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=◀ {0}}" Command="{Binding PrevPatternCommand}" Width="70"/>
+        <ComboBox x:Name="CmbPattern" Width="140" Margin="4,0"
+                  VerticalAlignment="Center"
+                  ItemsSource="{Binding Patterns}"
+                  DisplayMemberPath="Name"
+                  SelectedIndex="{Binding CurrentPatternIndex, Mode=TwoWay}"/>
+        <Button Content="{Binding DataContext[Next], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0} ▶}" Command="{Binding NextPatternCommand}" Width="70"/>
+        <Button Content="{Binding DataContext[DuplicateShort], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=⧉ {0}}" Margin="6,0,0,0" Command="{Binding DuplicatePatternCommand}" ToolTip="{Binding DataContext[TipDuplicatePattern], RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+        <Separator Margin="8,4"/>
+        <TextBlock Text="{Binding DataContext[Row], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"/>
+        <TextBlock Text="{Binding CurrentRow, StringFormat=D3}" VerticalAlignment="Center"
+                   FontFamily="Consolas" Foreground="{DynamicResource AccentLight}" Width="30"/>
+        <TextBlock Text="/ " VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}"/>
+        <TextBlock Text="{Binding CurrentPattern.RowCount}" VerticalAlignment="Center"
+                   FontFamily="Consolas" Foreground="{DynamicResource TextSecondary}"/>
+
+        <Separator Margin="8,4"/>
+        <TextBlock Text="{Binding DataContext[Channel], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"/>
+        <TextBlock Text="{Binding CurrentChannelName}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" Margin="0,0,6,0"/>
+        <TextBlock Text="{Binding CurrentChannelInstrumentLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"/>
+
+        <Separator Margin="8,4"/>
+        <TextBlock Text="{Binding CurrentCellNoteLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentLight}" FontFamily="Consolas" Margin="0,0,6,0"/>
+        <TextBlock Text="{Binding CurrentCellInstrumentLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" Margin="0,0,6,0"/>
+        <TextBlock Text="{Binding CurrentCellEffectLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"/>
+
+        <Separator Margin="8,4"/>
+        <Button Content="{Binding DataContext[ClearCell], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=✕ {0}}" Command="{Binding ClearCellCommand}" Margin="2,0"/>
+      </StackPanel>
+    </Border>
+
+    <!-- ── Tracker grid ────────────────────────────────────────────────────── -->
+    <local:PatternGridCanvas Grid.Row="1" x:Name="GridCanvas"
+                             DataContext="{Binding}"/>
+  </Grid>
+</UserControl>

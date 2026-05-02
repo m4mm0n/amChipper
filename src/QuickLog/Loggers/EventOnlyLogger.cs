@@ -1,0 +1,92 @@
+﻿/*
+ * ====================================================================================================
+ *  Project        : QuickLog
+ *  File           : EventOnlyLogger.cs
+ *  Author         : Geir Gustavsen, ZeroLinez Softworx 2024 - 2026
+ *  Created        : 2024-10-06 09:02:53 +02:00
+ *  Last Modified  : 2026-01-18 07:12:52 +01:00
+ *  CRC32          : 4EA6CC74
+ *  
+ *  Description    :
+ *                   A logger that only triggers log events without writing to a file or console.
+ *                   This logger is useful when you want to capture logs through event handlers.
+ * 
+ *  License        :
+ *                   MIT
+ *                   https://opensource.org/licenses/MIT
+ *
+ *  Notes          :
+ *                   THIS PROJECT IS A COMPLETE, AND SIMPLE TO USE LOGGER
+ * ====================================================================================================
+ */
+// CRC32-BODY: 4EA6CC74
+
+using System.Runtime.CompilerServices;
+
+namespace QuickLog.Loggers;
+
+/// <summary>
+/// A logger that only triggers log events without writing to a file or console. 
+/// This logger is useful when you want to capture logs through event handlers.
+/// </summary>
+public class EventOnlyLogger : IQuickLog
+{
+    /// <summary>
+    /// Occurs when a log event is triggered.
+    /// </summary>
+    public event EventHandler<LogEventArgs>? LogEvent;
+
+    /// <summary>
+    /// Logs a message with the specified log type and caller information.
+    /// </summary>
+    /// <param name="logType">The type of the log entry (e.g., Info, Debug, Error).</param>
+    /// <param name="message">The message to log.</param>
+    /// <param name="callerName">The name of the calling method. Automatically captured by the compiler.</param>
+    /// <param name="callerFilePath">The file path of the calling code. Automatically captured by the compiler.</param>
+    /// <param name="callerLineNumber">The line number of the calling code. Automatically captured by the compiler.</param>
+    public void Log(LogType logType, string message,
+        [CallerMemberName] string callerName = "",
+        [CallerFilePath] string callerFilePath = "",
+        [CallerLineNumber] int callerLineNumber = 0) =>
+        HandleLog(new LogEventArgs(logType, message, callerName, callerFilePath, callerLineNumber));
+
+    /// <summary>
+    /// Logs an exception with the specified log type and caller information.
+    /// </summary>
+    /// <param name="logType">The type of the log entry (e.g., Info, Debug, Error).</param>
+    /// <param name="exception">The exception to log.</param>
+    /// <param name="callerName">The name of the calling method. Automatically captured by the compiler.</param>
+    /// <param name="callerFilePath">The file path of the calling code. Automatically captured by the compiler.</param>
+    /// <param name="callerLineNumber">The line number of the calling code. Automatically captured by the compiler.</param>
+    public void Log(LogType logType, Exception exception,
+        [CallerMemberName] string callerName = "",
+        [CallerFilePath] string callerFilePath = "",
+        [CallerLineNumber] int callerLineNumber = 0) =>
+        HandleLog(new LogEventArgs(logType, exception, callerName, callerFilePath, callerLineNumber));
+
+    /// <summary>
+    /// Logs a message and an exception with the specified log type and caller information.
+    /// </summary>
+    /// <param name="logType">The type of the log entry (e.g., Info, Debug, Error).</param>
+    /// <param name="message">The message to log.</param>
+    /// <param name="exception">The exception to log.</param>
+    /// <param name="callerName">The name of the calling method. Automatically captured by the compiler.</param>
+    /// <param name="callerFilePath">The file path of the calling code. Automatically captured by the compiler.</param>
+    /// <param name="callerLineNumber">The line number of the calling code. Automatically captured by the compiler.</param>
+    public void Log(LogType logType, string message, Exception exception,
+        [CallerMemberName] string callerName = "",
+        [CallerFilePath] string callerFilePath = "",
+        [CallerLineNumber] int callerLineNumber = 0) =>
+        HandleLog(new LogEventArgs(logType, message, exception, callerName, callerFilePath, callerLineNumber));
+
+    /// <summary>
+    /// Handles the logging process by invoking the log event with the specified log event arguments.
+    /// </summary>
+    /// <param name="logEventArgs">The log event arguments containing the log details.</param>
+    private void HandleLog(LogEventArgs logEventArgs) => LogEvent?.Invoke(this, logEventArgs);
+
+    /// <summary>
+    /// Disposes the logger by setting the log event to null.
+    /// </summary>
+    public void Dispose() => LogEvent = null;
+}

@@ -1,0 +1,55 @@
+# Build output
+bin/
+obj/
+Ready2Release/
+publish/
+artifacts/
+*.nupkg
+*.snupkg
+*.zip
+
+# Visual Studio / Rider / local state
+.vs/
+.idea/
+*.user
+*.suo
+*.rsuser
+*.DotSettings.user
+
+# Logs and runtime state
+*.log
+logs/
+Logs/
+crash/
+settings.json
+
+# Local music corpora and third-party test libraries.
+# Keep these on disk for development, but do not publish them as GPLv3 source
+# unless the rights are explicitly compatible.
+c64/
+nsf/
+*.sid
+*.nsf
+*.vgm
+*.vgz
+*.sap
+*.hes
+*.kss
+*.spc
+*.gym
+*.xm
+*.mod
+*.s3m
+*.it
+
+# FL Studio score corpus copied from an installed product.
+flstudio_fsc/
+*.fsc
+
+# Converted local example modules are often derived from third-party songs.
+examples/*.amc
+!examples/README.md
+
+# OS noise
+Thumbs.db
+Desktop.ini

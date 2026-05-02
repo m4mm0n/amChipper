@@ -1,0 +1,305 @@
+amChipper User Guide
+====================
+
+Version target: v0.1.0.0-AMC20260501.x
+App type: .NET 10 WPF chiptune DAW / tracker
+
+
+1. What amChipper is
+--------------------
+
+amChipper is a modern chiptune DAW and tracker inspired by MilkyTracker and
+FL Studio. It is built around tracker modules, piano-roll editing, playlist
+arrangement, channel racks, mixer controls, automation, analyzer views, and
+native amChipper project/module formats.
+
+Important file types:
+
+  .amchip   Compressed amChipper project with full DAW state.
+  .amc      amChipper native chip module for the internal player.
+  .xm       FastTracker XM module.
+  .mod      ProTracker / MOD module.
+  .s3m      Scream Tracker module.
+  .it       Impulse Tracker module.
+  .sid      Commodore SID chip tune source.
+  .nsf      Nintendo NSF chip tune source.
+  .mid      MIDI note exchange.
+  .fsc      FL Studio score note exchange.
+  .wav      Rendered audio export.
+  .mp3      Rendered audio export.
+
+
+2. Opening music
+----------------
+
+Use File -> Open, Ctrl+O, or the Project Hub Open button.
+
+The Open dialog accepts amChipper projects/modules, tracker modules, chip
+sources, MIDI files, and FSC score files. When opening a tracker module, the app
+tries to preserve the original module playback path where possible while also
+building editable song, pattern, channel, instrument, mixer, and rack data.
+
+For SID/NSF chip files, amChipper imports metadata and builds editable trace
+patterns. Exact chip playback and exact editable conversion are different goals:
+native chip rendering is closer to the original sound, while editable trace data
+is useful for inspection and conversion.
+
+
+3. Project Hub
+--------------
+
+The Project Hub is the fast overview surface.
+
+Use it to:
+
+  - Edit song title and artist metadata.
+  - See format, timing, structure, restart order, and project state.
+  - Open, save, export, play/pause, create songs, and add tracks/patterns.
+  - Jump to Playlist, Piano Roll, Tracker Editor, or Help.
+  - Change session theme, language, and SID-to-XM mode.
+
+
+4. Transport and playback scopes
+--------------------------------
+
+Transport controls are at the top of the app.
+
+Shortcuts:
+
+  Space          Play / pause current scope
+  Shift+Space    Stop
+  Ctrl+1         Song playback scope
+  Ctrl+2         Pattern playback scope
+  Ctrl+3         Piano-roll playback scope
+
+Playback scopes:
+
+  Song       Plays the full arrangement/order flow.
+  Pattern    Plays the current selected pattern.
+  PianoRoll  Plays the current piano-roll pattern/channel context.
+
+Restart options:
+
+  - "Reset Stop to tracker restart order when available" controls whether Stop
+    returns to a module restart order.
+  - "Start playback from restart order" starts song playback from the restart
+    order instead of order 0 when the source exposes it.
+
+
+5. Playlist / Song Editor
+-------------------------
+
+The Playlist is the arrangement view.
+
+Tools:
+
+  Draw       Place pattern blocks.
+  Select     Select and edit existing blocks.
+  Erase      Remove blocks.
+  Zoom       Change timeline scale.
+  100        Reset zoom.
+  Fit        Fit the full song timeline.
+  Dup        Duplicate selected block.
+
+The compact spectrum preview in the Playlist toolbar is clickable. Clicking it
+cycles analyzer mode and opens the Analyzer rack.
+
+
+6. Piano Roll
+-------------
+
+The Piano Roll edits notes for a selected pattern and channel.
+
+Use it to:
+
+  - Select channel and pattern.
+  - Draw notes.
+  - Move notes.
+  - Delete notes.
+  - Preview notes and piano keys.
+  - Edit velocity.
+  - Play only the piano-roll context.
+  - Edit tracker effects below the note grid.
+
+The tracker FX panel below the notes shows effect rows currently in play. It can
+edit raw XM command bytes, effect parameters, and volume-column bytes. This is
+important because chiptune/tracker modules often rely heavily on effects.
+
+
+7. Tracker Editor
+-----------------
+
+The Tracker Editor exposes the row/channel view:
+
+  - Note
+  - Instrument
+  - Volume
+  - Effect command
+  - Effect parameter
+
+Use it when you need exact tracker-style editing rather than piano-roll editing.
+
+
+8. Channel Rack, Mixer, Automation, and Analyzer
+------------------------------------------------
+
+Channel Rack:
+
+  - Shows channel/instrument state.
+  - Shows effect summaries.
+  - Supports mute/solo-style workflow state.
+
+Mixer:
+
+  - Master and channel volume.
+  - Pan.
+  - Meters and readouts.
+  - Visualizer settings.
+
+Automation:
+
+  - Clip envelope editing.
+  - Volume and pan lanes.
+
+Analyzer:
+
+  - Larger professional spectrum view.
+  - Logarithmic frequency bands.
+  - Peak hold.
+  - Master output readout.
+  - Timing/source/output information.
+
+
+9. Saving and exporting
+-----------------------
+
+Save:
+
+  Ctrl+S saves the current project path if possible.
+  Save As can write .amchip, .amc, or XM depending on selection.
+
+Export To:
+
+  Use the unified Export To flow for native amChipper modules, compressed
+  projects, native source module export, XM conversion, MIDI/FSC piano-roll
+  exchange, WAV render, and MP3 render.
+
+Recommended choices:
+
+  - Use .amchip when you want full DAW state.
+  - Use .amc when you want an amChipper native playable/editable chip module.
+  - Use XM when you need tracker compatibility.
+  - Use WAV/MP3 when you want rendered audio.
+  - Use MIDI/FSC when you want note exchange with other DAWs.
+
+
+10. Custom amChipper formats
+----------------------------
+
+.amchip:
+
+  Compressed project format for DAW sessions.
+
+.amc:
+
+  Native amChipper chip module format. It stores a normalized amChipper song
+  inside a Brotli-compressed native container. It is intended for amChipper's
+  internal player/editor rather than external tracker compatibility.
+
+Example:
+
+  examples\Outlive no2.amc
+
+This file is generated from the included "Outlive no2.xm" as an example of the
+custom native chip module path.
+
+
+11. Settings
+------------
+
+Settings are saved under:
+
+  %LOCALAPPDATA%\amChipper\settings.json
+
+Settings include:
+
+  - Theme
+  - UI density
+  - Toolbar button sizing
+  - Language
+  - Tooltip delay and duration
+  - Transport defaults
+  - Audio output device
+  - Sample rate
+  - Latency
+  - Buffer count
+  - Piano-roll preview behaviour
+  - MIDI pattern default
+  - Mixer visualizer mode/intensity/peak hold
+  - Module diagnostics
+  - SID-to-XM mode
+  - Chip render tail seconds
+  - Startup tips
+  - Logging options
+  - Log directory
+
+
+12. Logs and diagnostics
+------------------------
+
+Enable verbose logging in Settings when diagnosing playback, export, effects, or
+format import problems.
+
+Useful options:
+
+  Verbose debug logging
+  Log dependency load details
+  Log directory
+
+The log folder can be opened from Settings.
+
+
+13. Known limitations
+---------------------
+
+SID-to-XM:
+
+  Exact SID-to-XM editable conversion is not perfect. SID filters, oscillator
+  interactions, timing tricks, and CPU-driven player code do not map cleanly to
+  XM rows. Rendered Mix Only is usually the most faithful audible export.
+
+External tracker compatibility:
+
+  .amc and .amchip are amChipper formats. Use XM, MIDI, FSC, WAV, or MP3 when
+  exchanging with external tools.
+
+
+14. Headless console
+--------------------
+
+The console helper can inspect and test modules:
+
+  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- dashboard --input "Outlive no2.xm"
+
+Self-test:
+
+  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- self-test --input "Outlive no2.xm" --pattern 0 --channel 1
+
+Export AMC example:
+
+  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- export-amc --input "Outlive no2.xm" --export "examples\Outlive no2.amc"
+
+
+15. Fast workflow
+-----------------
+
+1. Open or create a song.
+2. Check Project Hub structure and format.
+3. Use Playlist for arrangement.
+4. Use Piano Roll for musical note editing.
+5. Use Tracker Editor for exact effect work.
+6. Use Channel Rack and Mixer to inspect channels.
+7. Use Analyzer to inspect live output.
+8. Save as .amchip for full project work.
+9. Export as .amc for native amChipper module use.
+10. Export WAV/MP3/XM/MIDI/FSC depending on target.

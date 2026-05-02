@@ -1,0 +1,266 @@
+<UserControl x:Class="amChipper.App.Controls.PianoRoll.PianoRollControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:amChipper.App.Controls.PianoRoll"
+             Background="{DynamicResource BgPanel}">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="32"/>     <!-- toolbar -->
+      <RowDefinition Height="*"/>      <!-- main piano roll area -->
+      <RowDefinition Height="150"/>    <!-- tracker effect rack -->
+      <RowDefinition Height="80"/>     <!-- velocity editor -->
+    </Grid.RowDefinitions>
+
+    <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+    <Border Grid.Row="0" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+
+        <TextBlock Text="{Binding DataContext[Instrument], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <TextBlock Text="{Binding InstrumentName}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentLight}" MinWidth="80"/>
+
+        <Separator Margin="8,4"/>
+
+        <TextBlock Text="{Binding DataContext[Channel], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <ComboBox Width="44" VerticalAlignment="Center"
+                  ItemsSource="{Binding ChannelOptions}"
+                  SelectedItem="{Binding CurrentChannel, Mode=TwoWay}"/>
+
+        <Separator Margin="8,4"/>
+
+        <TextBlock Text="{Binding DataContext[Pattern], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <ComboBox Width="140" VerticalAlignment="Center"
+                  ItemsSource="{Binding PatternOptions}"
+                  DisplayMemberPath="Name"
+                  SelectedIndex="{Binding CurrentPatternIndex, Mode=TwoWay}"/>
+
+        <TextBlock Text="{Binding CurrentPatternLabel}" VerticalAlignment="Center" Margin="8,0,0,0"
+                   Foreground="{DynamicResource AccentLight}"/>
+
+        <Separator Margin="8,4"/>
+
+        <!-- Tool buttons -->
+        <ToggleButton Content="{Binding DataContext[Draw], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=✏ {0}}"   IsChecked="True"  x:Name="BtnDraw"   Click="Tool_Draw"   Margin="2,0"/>
+        <ToggleButton Content="{Binding DataContext[Select], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=⬚ {0}}" IsChecked="False" x:Name="BtnSelect" Click="Tool_Select" Margin="2,0"/>
+        <ToggleButton Content="{Binding DataContext[Erase], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=✕ {0}}"  IsChecked="False" x:Name="BtnErase"  Click="Tool_Erase"  Margin="2,0"/>
+
+        <Separator Margin="8,4"/>
+
+        <Button Content="{Binding DataContext[Roll], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=▶ {0}}" MinWidth="58"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                Command="{Binding PlayLaneCommand}"
+                ToolTip="{Binding DataContext[TipPlayPianoRollPattern], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Button Content="■" MinWidth="30"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                Margin="4,0,0,0"
+                Command="{Binding StopCommand}"
+                ToolTip="{Binding DataContext[Stop], RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+        <Separator Margin="8,4"/>
+
+        <!-- Quantise -->
+        <TextBlock Text="{Binding DataContext[Quantize], RelativeSource={RelativeSource AncestorType=Window}, StringFormat={}{0}:}" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <ComboBox x:Name="CmbQuantise" Width="60" VerticalAlignment="Center"
+                  SelectionChanged="CmbQuantise_SelectionChanged"/>
+
+        <Separator Margin="8,4"/>
+
+        <CheckBox Content="{Binding DataContext[Keys], RelativeSource={RelativeSource AncestorType=Window}}"
+                  IsChecked="{Binding TypingKeyboardEnabled, Mode=TwoWay}"
+                  VerticalAlignment="Center"
+                  ToolTip="{Binding DataContext[TipTypingKeyboardLayout], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <TextBlock Text="{Binding DataContext[Base], RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="6,0,2,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <TextBox Width="34" VerticalAlignment="Center"
+                 Text="{Binding TypingKeyboardBaseNote, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="{Binding DataContext[TipKeyboardBaseDetailed], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <TextBlock Text="{Binding DataContext[VelocityShort], RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="6,0,2,0"
+                   Foreground="{DynamicResource TextSecondary}"/>
+        <TextBox Width="34" VerticalAlignment="Center"
+                 Text="{Binding TypingKeyboardVelocity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="{Binding DataContext[TipKeyboardVelocityDetailed], RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+        <Separator Margin="8,4"/>
+
+        <!-- Zoom -->
+        <Button Content="−"
+                Width="{Binding DataContext.EditorToolButtonWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontSize="{Binding DataContext.EditorToolButtonFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                Click="ZoomOutH" ToolTip="{Binding DataContext[TipZoomOutHorizontal], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <TextBlock Text="H" VerticalAlignment="Center" Margin="3,0"/>
+        <Button Content="+"
+                Width="{Binding DataContext.EditorToolButtonWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontSize="{Binding DataContext.EditorToolButtonFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                Click="ZoomInH"  ToolTip="{Binding DataContext[TipZoomInHorizontal], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Separator Margin="4,4"/>
+        <Button Content="−"
+                Width="{Binding DataContext.EditorToolButtonWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontSize="{Binding DataContext.EditorToolButtonFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                Click="ZoomOutV" ToolTip="{Binding DataContext[TipZoomOutVertical], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <TextBlock Text="V" VerticalAlignment="Center" Margin="3,0"/>
+        <Button Content="+"
+                Width="{Binding DataContext.EditorToolButtonWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontSize="{Binding DataContext.EditorToolButtonFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                Click="ZoomInV"  ToolTip="{Binding DataContext[TipZoomInVertical], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Button Content="100" MinWidth="34" Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                Margin="4,0,0,0" Click="ZoomReset" ToolTip="{Binding DataContext[TipZoomReset], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Button Content="{Binding DataContext[Fit], RelativeSource={RelativeSource AncestorType=Window}}" MinWidth="34" Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                Margin="4,0,0,0" Click="ZoomFit" ToolTip="{Binding DataContext[TipZoomFitNotes], RelativeSource={RelativeSource AncestorType=Window}}"/>
+      </StackPanel>
+    </Border>
+
+    <!-- ── Piano roll canvas area ──────────────────────────────────────────── -->
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="50"/>   <!-- piano keyboard -->
+        <ColumnDefinition Width="*"/>    <!-- note grid -->
+      </Grid.ColumnDefinitions>
+
+      <!-- Piano keyboard (left sidebar) -->
+      <Border Grid.Column="0"
+              Background="{DynamicResource BgControl}"
+              BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0"
+              ClipToBounds="True">
+        <local:PianoKeysCanvas x:Name="PianoKeys"/>
+      </Border>
+
+      <!-- Note grid with scrollbars -->
+      <ScrollViewer Grid.Column="1" x:Name="NoteScroll"
+                    HorizontalScrollBarVisibility="Visible"
+                    VerticalScrollBarVisibility="Visible"
+                    PreviewMouseWheel="NoteScroll_PreviewMouseWheel"
+                    ScrollChanged="NoteScroll_ScrollChanged">
+        <local:NoteGridCanvas x:Name="NoteGrid"
+                              MinWidth="2000" MinHeight="1778"/>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- ── Velocity editor ─────────────────────────────────────────────────── -->
+    <!-- ── Tracker effect rack ─────────────────────────────────────────────── -->
+    <Border Grid.Row="2" Background="{DynamicResource BgPanel}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+      <Grid Margin="10,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="430"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgDeep}" CornerRadius="5">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="30"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <DockPanel Grid.Row="0" Margin="10,0">
+              <TextBlock Text="{Binding DataContext[TrackerFx], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}"
+                         FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding EffectRows.Count, StringFormat={}{0} rows}"
+                         DockPanel.Dock="Right" Foreground="#C9A95A"
+                         FontFamily="Consolas" VerticalAlignment="Center"/>
+            </DockPanel>
+            <ListBox Grid.Row="1" ItemsSource="{Binding EffectRows}"
+                     SelectedItem="{Binding SelectedEffectRow, Mode=TwoWay}"
+                     Background="{DynamicResource BgDeep}" BorderThickness="0"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="4,2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="42"/>
+                      <ColumnDefinition Width="46"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding RowLabel}" Foreground="#A8B7D8"
+                               FontFamily="Consolas"/>
+                    <TextBlock Grid.Column="1" Text="{Binding NoteLabel}" Foreground="{DynamicResource TextPrimary}"
+                               FontFamily="Consolas"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="#C9A95A"
+                               FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Margin="10,0,0,0" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgDeep}" CornerRadius="5" Padding="10,8">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="26"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBlock Text="{Binding SelectedNoteEffectLabel}"
+                     Foreground="{DynamicResource AccentLight}" FontFamily="Consolas"
+                     VerticalAlignment="Center"/>
+          <Grid Grid.Row="1" Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1.15*"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,8,0">
+              <TextBlock Text="{Binding DataContext[Effect], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
+              <ComboBox ItemsSource="{Binding EffectCommandOptions}"
+                        SelectedItem="{Binding SelectedEffectCommand, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="0,0,8,0">
+              <TextBlock Text="{Binding DataContext[XmCommand], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
+              <TextBox Text="{Binding SelectedEffectColumnHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       FontFamily="Consolas" MaxLength="2"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="0,0,8,0">
+              <TextBlock Text="{Binding DataContext[Param], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
+              <TextBox Text="{Binding SelectedEffectParamHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       FontFamily="Consolas" MaxLength="2"/>
+            </StackPanel>
+            <StackPanel Grid.Column="3">
+              <TextBlock Text="{Binding DataContext[VolCommand], RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource TextSecondary}" FontSize="11"/>
+              <TextBox Text="{Binding SelectedVolumeColumnHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       FontFamily="Consolas" MaxLength="2"/>
+            </StackPanel>
+          </Grid>
+
+          <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+              <Button Content="{Binding DataContext[Apply], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=✓ {0}}" Width="72" Margin="0,0,6,0"
+                      Command="{Binding ApplyEffectCommand}"/>
+              <Button Content="{Binding DataContext[Clear], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=✕ {0}}" Width="72"
+                      Command="{Binding ClearEffectCommand}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding DataContext[EffectEditorHelp], RelativeSource={RelativeSource AncestorType=Window}}"
+                       Foreground="{DynamicResource TextSecondary}"
+                       TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,4,12,0"/>
+          </DockPanel>
+        </Grid>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="3" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="50"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Text="{Binding DataContext[VelocityShort], RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center"
+                   HorizontalAlignment="Center" Foreground="{DynamicResource TextSecondary}"
+                   FontSize="10"/>
+        <local:VelocityCanvas Grid.Column="1" x:Name="VelocityPanel"/>
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>

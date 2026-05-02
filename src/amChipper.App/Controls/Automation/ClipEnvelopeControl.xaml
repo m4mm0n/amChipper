@@ -1,0 +1,28 @@
+<UserControl x:Class="amChipper.App.Controls.Automation.ClipEnvelopeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:amChipper.App.Controls.Automation"
+             Background="{DynamicResource BgPanel}">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="32"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Background="{DynamicResource BgControl}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+        <TextBlock Text="{Binding DataContext[ClipEnvelope], RelativeSource={RelativeSource AncestorType=Window}, StringFormat=◒ {0}}" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" Margin="0,0,8,0"/>
+        <TextBlock Text="{Binding BlockLabel}" Foreground="{DynamicResource AccentLight}" Margin="0,0,8,0"/>
+        <ToggleButton Content="{Binding DataContext[Volume], RelativeSource={RelativeSource AncestorType=Window}}" IsChecked="True" x:Name="BtnVol" Click="SetVolume" Margin="2,0"/>
+        <ToggleButton Content="{Binding DataContext[Pan], RelativeSource={RelativeSource AncestorType=Window}}" x:Name="BtnPan" Click="SetPan" Margin="2,0"/>
+        <TextBlock Text="{Binding TargetLabel}" Margin="12,0,0,0"
+                   VerticalAlignment="Center" Foreground="{DynamicResource AccentLight}"
+                   FontFamily="Consolas"/>
+      </StackPanel>
+    </Border>
+
+    <local:AutomationLaneCanvas Grid.Row="1" x:Name="Lane"/>
+  </Grid>
+</UserControl>

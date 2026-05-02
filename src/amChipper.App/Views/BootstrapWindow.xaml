@@ -1,0 +1,159 @@
+<Window x:Class="amChipper.App.Views.BootstrapWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="amChipper"
+        Width="920" Height="640"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Foreground="#FFF1F6FF"
+        FontFamily="Segoe UI"
+        Icon="pack://application:,,,/Assets/icon_clean.png">
+
+  <Border CornerRadius="14"
+          Background="#FF080A18"
+          BorderBrush="#FF35406B"
+          BorderThickness="1"
+          Padding="1">
+    <Border.Effect>
+      <DropShadowEffect BlurRadius="28" ShadowDepth="0" Opacity="0.55" Color="#FF000000"/>
+    </Border.Effect>
+
+    <Grid ClipToBounds="True">
+      <Grid.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+          <GradientStop Color="#FF080A18" Offset="0"/>
+          <GradientStop Color="#FF121936" Offset="0.48"/>
+          <GradientStop Color="#FF070910" Offset="1"/>
+        </LinearGradientBrush>
+      </Grid.Background>
+
+      <Grid Margin="34,26,34,30">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+          <Image Source="pack://application:,,,/Assets/icon_clean.png"
+                 DockPanel.Dock="Right"
+                 Width="40" Height="40"
+                 RenderOptions.BitmapScalingMode="HighQuality"/>
+          <StackPanel>
+            <TextBlock Text="amChipper"
+                       FontSize="30"
+                       FontWeight="SemiBold"
+                       Foreground="#FFF1F6FF"/>
+            <TextBlock x:Name="TxtTagline"
+                       Text="Modern tracker workstation for chiptune modules"
+                       FontSize="13"
+                       Foreground="#FFC8D8FF"
+                       Margin="1,2,0,0"/>
+          </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1" Height="1" Margin="0,20,0,14" Background="#FF35406B"/>
+
+        <Border Grid.Row="2"
+                Height="332"
+                CornerRadius="14"
+                Background="#33000000"
+                BorderBrush="#223F6A"
+                BorderThickness="1"
+                Padding="18">
+          <Grid>
+            <Rectangle Opacity="0.38">
+              <Rectangle.Fill>
+                <RadialGradientBrush Center="0.50,0.44" GradientOrigin="0.50,0.44" RadiusX="0.78" RadiusY="0.82">
+                  <GradientStop Color="#553A95FF" Offset="0"/>
+                  <GradientStop Color="#1617F4FF" Offset="0.52"/>
+                  <GradientStop Color="#00000000" Offset="1"/>
+                </RadialGradientBrush>
+              </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle Opacity="0.22">
+              <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                  <GradientStop Color="#004B9EFF" Offset="0"/>
+                  <GradientStop Color="#6657F2FF" Offset="0.48"/>
+                  <GradientStop Color="#00FFFFFF" Offset="1"/>
+                </LinearGradientBrush>
+              </Rectangle.Fill>
+            </Rectangle>
+            <Image Source="pack://application:,,,/Assets/logo_splash.png"
+                   Stretch="Uniform"
+                   MaxHeight="300"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+          </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="3" Margin="0,20,0,0">
+          <TextBlock x:Name="TxtStatus"
+                     Text="Starting audio workstation..."
+                     FontSize="15"
+                     Foreground="#FF66E6FF"
+                     FontWeight="SemiBold"/>
+          <TextBlock x:Name="TxtDetail"
+                     Text="Preparing theme, audio engine, module support, and editor surfaces."
+                     FontSize="12"
+                     Foreground="#FFC8D8FF"
+                     TextWrapping="Wrap"
+                     Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <Grid Grid.Row="5" Margin="0,0,0,10" VerticalAlignment="Bottom">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="86"/>
+          </Grid.ColumnDefinitions>
+          <Grid Grid.Column="0">
+            <ProgressBar x:Name="ProgressBar"
+                         Height="16"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="0"
+                         Foreground="#FF2F8CFF"
+                         Background="#FF11142A"
+                         BorderBrush="#FF35406B"/>
+            <Border Height="16" IsHitTestVisible="False">
+              <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                  <GradientStop Color="#55FFFFFF" Offset="0"/>
+                  <GradientStop Color="#00FFFFFF" Offset="0.45"/>
+                </LinearGradientBrush>
+              </Border.Background>
+            </Border>
+          </Grid>
+          <Button x:Name="BtnCancel"
+                  Grid.Column="2"
+                  Content="Cancel"
+                  Width="86"
+                  Click="BtnCancel_Click"
+                  Background="#FF1A1F3B"
+                  Foreground="#FFF1F6FF"
+                  BorderBrush="#FF35406B"
+                  Padding="8,4"/>
+        </Grid>
+
+        <DockPanel Grid.Row="6">
+          <TextBlock x:Name="TxtProgress"
+                     Text="0%"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Foreground="#FFC8D8FF"
+                     VerticalAlignment="Center"/>
+        </DockPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>
