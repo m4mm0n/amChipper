@@ -20,5 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\amChipper.Core\amChipper.Core.csproj" />
+    <ProjectReference Include="..\amChipper.SidPlayer\amChipper.SidPlayer.csproj" />
   </ItemGroup>
 </Project>

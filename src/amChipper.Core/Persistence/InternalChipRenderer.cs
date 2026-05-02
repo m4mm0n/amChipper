@@ -23,6 +23,24 @@ public static class InternalChipRenderer
     public static bool CanRender(ModuleFormat format) => format is ModuleFormat.SID or ModuleFormat.NSF;
 
     /// <summary>
+    /// Creates a bounded live chip renderer for source playback without pre-rendering the whole tune.
+    /// </summary>
+    public static IChipStreamRenderer CreateStreamingRenderer(byte[] data, string sourcePath, int sampleRate = DefaultSampleRate)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+
+        var metadata = ChipTuneFile.ReadMetadata(data, sourcePath);
+        sampleRate = Math.Clamp(sampleRate, 8000, 192000);
+        if (metadata.Format == ModuleFormat.NSF)
+        {
+            var program = NsfProgram.Load(data) ?? throw new InvalidDataException("Not an NSF file.");
+            return new NsfStreamRenderer(program, metadata, sampleRate);
+        }
+
+        throw new InvalidOperationException($"{metadata.Format} does not support live chip streaming yet.");
+    }
+
+    /// <summary>
     /// Executes the SidFrequencyRegisterToHzForTests operation.
     /// </summary>
     public static double SidFrequencyRegisterToHzForTests(ushort frequencyRegister, bool pal = true)
@@ -285,19 +303,22 @@ public static class InternalChipRenderer
         private const int PlayInstructionBudget = 18_000;
         private readonly NesApu _apu;
         private readonly NsfCpu _cpu;
+        private readonly NsfProgram _program;
         private readonly int _sampleRate;
         private readonly int _playIntervalSamples;
-        private int _nextPlaySample;
+        private long _nextPlaySample;
+        private long _renderedSamples;
         private int _playTimeoutStreak;
         private int _deferredPlayCalls;
 
-        private NsfRuntime(NsfProgram program, ChipTuneMetadata metadata, int sampleRate)
+        public NsfRuntime(NsfProgram program, ChipTuneMetadata metadata, int sampleRate)
             : this(program, Math.Clamp(metadata.StartSong > 0 ? metadata.StartSong : program.StartSong, 1, program.SongCount), sampleRate)
         {
         }
 
-        private NsfRuntime(NsfProgram program, int startSong, int sampleRate)
+        public NsfRuntime(NsfProgram program, int startSong, int sampleRate)
         {
+            _program = program;
             _sampleRate = sampleRate;
             _apu = new NesApu(program.Data);
             _cpu = new NsfCpu(program, _apu);
@@ -311,41 +332,53 @@ public static class InternalChipRenderer
             int frames = seconds * sampleRate;
             float[] stereo = new float[frames * 2];
             int maxRenderMilliseconds = Math.Clamp(seconds * 250, 1500, 6000);
-            var renderBudget = Stopwatch.StartNew();
+            runtime.RenderInto(stereo, frames, 2, maxRenderMilliseconds);
+            return stereo;
+        }
 
-            for (int frame = 0; frame < frames; frame++)
+        public void RenderInto(float[] buffer, int frameCount, int channels, int maxMilliseconds = 0)
+        {
+            channels = Math.Clamp(channels, 1, 2);
+            frameCount = Math.Clamp(frameCount, 0, buffer.Length / channels);
+            Stopwatch? renderBudget = maxMilliseconds > 0 ? Stopwatch.StartNew() : null;
+            for (int frame = 0; frame < frameCount; frame++)
             {
-                if ((frame & 0x1FFF) == 0 && renderBudget.ElapsedMilliseconds > maxRenderMilliseconds)
-                    throw new TimeoutException($"NSF render exceeded {maxRenderMilliseconds}ms safety budget.");
-
-                if (frame >= runtime._nextPlaySample)
+                if (renderBudget is not null &&
+                    (frame & 0x1FFF) == 0 &&
+                    renderBudget.ElapsedMilliseconds > maxMilliseconds)
                 {
-                    if (runtime._deferredPlayCalls > 0)
+                    throw new TimeoutException($"NSF render exceeded {maxMilliseconds}ms safety budget.");
+                }
+
+                if (_renderedSamples >= _nextPlaySample)
+                {
+                    if (_deferredPlayCalls > 0)
                     {
-                        runtime._deferredPlayCalls--;
+                        _deferredPlayCalls--;
                     }
                     else
                     {
-                        runtime._cpu.Call(program.PlayAddress, runtime._cpu.A, runtime._cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 3);
-                        runtime._playTimeoutStreak = runtime._cpu.LastCallTimedOut
-                            ? Math.Min(runtime._playTimeoutStreak + 1, 16)
+                        _cpu.Call(_program.PlayAddress, _cpu.A, _cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 2);
+                        _playTimeoutStreak = _cpu.LastCallTimedOut
+                            ? Math.Min(_playTimeoutStreak + 1, 16)
                             : 0;
                     }
 
-                    runtime._nextPlaySample += runtime._playIntervalSamples;
-                    if (runtime._playTimeoutStreak >= 6)
+                    _nextPlaySample += _playIntervalSamples;
+                    if (_playTimeoutStreak >= 4)
                     {
-                        runtime._deferredPlayCalls = Math.Min(runtime._deferredPlayCalls + 1, 4);
-                        runtime._playTimeoutStreak = 4;
+                        _deferredPlayCalls = Math.Min(_deferredPlayCalls + 1, 8);
+                        _playTimeoutStreak = 3;
                     }
                 }
 
-                double sample = runtime._apu.RenderSample(sampleRate);
-                stereo[frame * 2] = SoftClip(sample);
-                stereo[frame * 2 + 1] = SoftClip(sample);
+                float sample = SoftClip(_apu.RenderSample(_sampleRate));
+                int baseIndex = frame * channels;
+                buffer[baseIndex] = sample;
+                if (channels > 1)
+                    buffer[baseIndex + 1] = sample;
+                _renderedSamples++;
             }
-
-            return stereo;
         }
 
         public static IReadOnlyList<NsfVoiceRow> InspectVoiceRows(NsfProgram program, int startSong, int rows, int maxMilliseconds)
@@ -395,6 +428,27 @@ public static class InternalChipRenderer
 
             return result;
         }
+    }
+
+    /// <summary>
+    /// Live NSF stream renderer used by the audio engine for responsive source playback.
+    /// </summary>
+    private sealed class NsfStreamRenderer : IChipStreamRenderer
+    {
+        private readonly NsfRuntime _runtime;
+
+        public NsfStreamRenderer(NsfProgram program, ChipTuneMetadata metadata, int sampleRate)
+        {
+            _runtime = new NsfRuntime(program, metadata, sampleRate);
+            SampleRate = sampleRate;
+        }
+
+        public ModuleFormat Format => ModuleFormat.NSF;
+
+        public int SampleRate { get; }
+
+        public void Render(float[] buffer, int frameCount, int channels) =>
+            _runtime.RenderInto(buffer, frameCount, channels);
     }
 
     /// <summary>
@@ -3706,3 +3760,24 @@ public sealed record NsfVoiceRow(
     byte EffectColumn,
     byte EffectParam,
     string Source);
+
+/// <summary>
+/// Streams chip source audio into an interleaved floating-point output buffer.
+/// </summary>
+public interface IChipStreamRenderer
+{
+    /// <summary>
+    /// Gets the source chip format handled by this stream renderer.
+    /// </summary>
+    ModuleFormat Format { get; }
+
+    /// <summary>
+    /// Gets the configured output sample rate.
+    /// </summary>
+    int SampleRate { get; }
+
+    /// <summary>
+    /// Renders the next chunk of source audio into an interleaved float buffer.
+    /// </summary>
+    void Render(float[] buffer, int frameCount, int channels);
+}

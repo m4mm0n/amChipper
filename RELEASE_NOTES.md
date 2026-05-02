@@ -1,17 +1,19 @@
-# amChipper v0.1.0.0-AMC20260502.10
+# amChipper v0.1.0.0-AMC20260503.1
 
-This release focuses on stopping NSF playback from freezing the WPF app and keeping the release package current.
+This release replaces the rough NSF song-playback fallback with bounded live NSF streaming so the app no longer has to pre-render a chip cache before playback.
 
 ## Included
 
-- NSF song playback now uses the imported trace sequencer path instead of forcing a synchronous rendered WAV cache.
-- Opening NSF files no longer starts a background preview render automatically.
-- NSF trace import has tighter wall-clock budgets and exits after repeated play-call timeouts.
-- NSF WAV/MP3 conversion uses the trace sequencer path by default to avoid renderer lockups.
-- App build bumped to `v0.1.0.0-AMC20260502.10`.
-- SID and NSF plugin assemblies bumped to `v0.1.7.0`.
+- Added a live chip stream player in the audio engine for NSF source playback.
+- NSF song playback now streams from the NSF driver path instead of the imported tracker trace when the file is clean and playback scope is Song.
+- NSF pattern and piano-roll playback still use the editable trace path, so visible tracker/piano-roll material remains usable.
+- The chip stream path is bounded per audio chunk and defers expensive NSF play calls after repeated timeouts instead of letting one driver monopolize playback.
+- `nsf-batch` and `chip-batch` now validate NSF files through the same streaming path used by app playback.
+- Added a regression test proving NSF stream chunks render audibly within a bounded time budget.
+- App build bumped to `v0.1.0.0-AMC20260503.1`.
+- SID and NSF plugin assemblies bumped to `v0.1.8.0`.
 - Ready2Release has been rebuilt, language packs regenerated, and the published executable smoke-tested.
 
 ## Notes
 
-SID/NSF emulation and chip-to-tracker reconstruction are still active development areas. This build prioritizes keeping the DAW responsive for problematic NSF drivers while preserving editable trace playback and live meters.
+SID/NSF emulation and chip-to-tracker reconstruction are still active development areas. This build specifically targets the remaining NSF UI-hang and bad-song-playback path by using live bounded streaming for full-song playback and keeping the trace sequencer as the editable fallback.

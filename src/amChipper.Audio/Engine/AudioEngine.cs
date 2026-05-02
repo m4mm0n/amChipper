@@ -1,6 +1,7 @@
 using NAudio.Wave;
 using amChipper.Core.Interfaces;
 using amChipper.Core.Models;
+using amChipper.Core.Persistence;
 using CorePlaybackState = amChipper.Core.Models.PlaybackState;
 
 namespace amChipper.Audio.Engine;
@@ -49,6 +50,11 @@ public sealed class AudioEngine : IAudioEngine
     public RenderedAudioFilePlayer AudioFilePlayer { get; }
 
     /// <summary>
+    /// Stores or exposes ChipStreamPlayer.
+    /// </summary>
+    public ChipStreamPlayer ChipStreamPlayer { get; }
+
+    /// <summary>
     /// Stores or exposes UseModulePlayer.
     /// </summary>
     public bool UseModulePlayer { get; set; } = false;
@@ -56,6 +62,11 @@ public sealed class AudioEngine : IAudioEngine
     /// Stores or exposes UseAudioFilePlayer.
     /// </summary>
     public bool UseAudioFilePlayer { get; set; } = false;
+
+    /// <summary>
+    /// Stores or exposes UseChipStreamPlayer.
+    /// </summary>
+    public bool UseChipStreamPlayer { get; set; } = false;
 
     /// <summary>
     /// Stores or exposes State.
@@ -106,6 +117,7 @@ public sealed class AudioEngine : IAudioEngine
         ModulePlayer = new ModulePlayer(44100, _log);
         Sequencer = new InternalSequencer(44100, _log);
         AudioFilePlayer = new RenderedAudioFilePlayer(_log);
+        ChipStreamPlayer = new ChipStreamPlayer(_log);
     }
 
     /// <summary>
@@ -159,7 +171,7 @@ public sealed class AudioEngine : IAudioEngine
         if (_waveOut is null) Initialise();
         _waveOut!.Play();
         State = CorePlaybackState.Playing;
-        string mode = UseAudioFilePlayer ? "AudioFile" : UseModulePlayer ? "Module" : "Sequencer";
+        string mode = UseChipStreamPlayer ? "ChipStream" : UseAudioFilePlayer ? "AudioFile" : UseModulePlayer ? "Module" : "Sequencer";
         _log.Info($"Playback started (mode: {mode}).");
     }
 
@@ -181,6 +193,7 @@ public sealed class AudioEngine : IAudioEngine
         _waveOut?.Stop();
         Sequencer.Stop();
         AudioFilePlayer.Stop();
+        ChipStreamPlayer.Stop();
         State = CorePlaybackState.Stopped;
         _log.Info("Playback stopped.");
     }
@@ -195,6 +208,7 @@ public sealed class AudioEngine : IAudioEngine
         _log.Info($"[AudioEngine] PreviewNote pitch={pitch} instrumentIndex={instrumentIndex} channel={channel} velocity={velocity} ms={milliseconds}");
         UseModulePlayer = false;
         UseAudioFilePlayer = false;
+        UseChipStreamPlayer = false;
         Sequencer.SetSong(song);
         Sequencer.PreviewNote(pitch, instrumentIndex, channel, velocity, milliseconds);
 
@@ -360,6 +374,88 @@ public sealed class RenderedAudioFilePlayer : IDisposable
     }
 }
 
+/// <summary>
+/// Streams supported chip sources directly into the audio engine without whole-song pre-rendering.
+/// </summary>
+public sealed class ChipStreamPlayer
+{
+    private readonly IAppLogger _log;
+    private readonly object _lock = new();
+    private amChipper.Core.Persistence.IChipStreamRenderer? _renderer;
+    private string? _sourcePath;
+
+    public ChipStreamPlayer(IAppLogger log) => _log = log;
+
+    /// <summary>
+    /// Gets whether a live chip stream is ready for playback.
+    /// </summary>
+    public bool IsLoaded
+    {
+        get { lock (_lock) return _renderer is not null; }
+    }
+
+    /// <summary>
+    /// Loads a supported chip source for bounded live playback.
+    /// </summary>
+    public bool Load(byte[] data, string sourcePath, int sampleRate)
+    {
+        lock (_lock)
+        {
+            try
+            {
+                _renderer = InternalChipRenderer.CreateStreamingRenderer(data, sourcePath, sampleRate);
+                _sourcePath = sourcePath;
+                _log.Info($"[ChipStream] Loaded {_renderer.Format} stream path=\"{sourcePath}\" sampleRate={_renderer.SampleRate}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _renderer = null;
+                _sourcePath = null;
+                _log.Warning($"[ChipStream] Failed to load stream path=\"{sourcePath}\": {ex.Message}");
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders the next chunk from the live chip source.
+    /// </summary>
+    public int Render(float[] buffer, int frameCount, int outputChannels)
+    {
+        lock (_lock)
+        {
+            if (_renderer is null)
+                return 0;
+
+            try
+            {
+                _renderer.Render(buffer, frameCount, outputChannels);
+                return frameCount;
+            }
+            catch (Exception ex)
+            {
+                _log.Warning($"[ChipStream] Stream render stopped path=\"{_sourcePath}\": {ex.Message}");
+                _renderer = null;
+                _sourcePath = null;
+                return 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Clears the active live chip stream.
+    /// </summary>
+    public void Stop()
+    {
+        lock (_lock)
+        {
+            _renderer = null;
+            _sourcePath = null;
+        }
+    }
+}
+
 /// <summary>IWaveProvider that pulls from ModulePlayer or InternalSequencer.</summary>
 internal sealed class ChipWaveProvider : IWaveProvider
 {
@@ -403,7 +499,9 @@ internal sealed class ChipWaveProvider : IWaveProvider
 
         Array.Clear(_floatBuffer, 0, frameCount * channels);
 
-        if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
+        if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
+            _engine.ChipStreamPlayer.Render(_floatBuffer, frameCount, channels);
+        else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
             _engine.AudioFilePlayer.Render(_floatBuffer, frameCount, channels);
         else if (_engine.UseModulePlayer && _engine.ModulePlayer.IsLoaded)
             _engine.ModulePlayer.Render(_floatBuffer, frameCount);

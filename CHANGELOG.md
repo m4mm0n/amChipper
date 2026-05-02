@@ -1,6 +1,36 @@
 # amChipper Changelog
 
-This changelog covers the implementation work performed from 30.04.2026 through 02.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
+This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
+
+## v0.1.0.0-AMC20260503.1 - 03.05.2026
+
+### Live NSF Streaming and Release Refresh
+
+- Added a bounded live chip-stream renderer for NSF sources so full-song NSF playback no longer has to pre-render a WAV cache or fall back to the rough editable tracker trace.
+- Added `ChipStreamPlayer` to the audio engine and routed the WPF wave provider through it before module/audio-file/sequencer playback when a live chip stream is active.
+- Changed clean NSF Song-scope playback to load the original NSF bytes and stream them directly from the internal NSF driver path.
+- Kept NSF pattern and piano-roll playback on the editable trace sequencer path so tracker-visible pattern material can still be inspected and played in isolation.
+- Added per-buffer NSF render state so streaming playback keeps play-call timing across audio callbacks instead of restarting timing at every buffer.
+- Tightened repeated NSF play-call timeout handling in the stream path by deferring expensive play calls after consecutive timeouts rather than blocking the audio/UI path.
+- Updated `nsf-batch` and `chip-batch` diagnostics so NSF validation uses the same streaming path as app playback.
+- Added `NsfStreamingRendererProducesBoundedAudibleChunks` to guard against stream chunks going silent or taking too long to render.
+- Validated the streaming path against 250 local NSF files for 2 seconds each; all sampled files produced audible output and no failures.
+- Bumped the app informational version to `v0.1.0.0-AMC20260503.1`.
+- Bumped `amChipper.SidPlayer.dll` and `amChipper.NsfPlayer.dll` to `v0.1.8.0`.
+- Rebuilt `Ready2Release`, regenerated language packs, smoke-tested the published app executable, pushed the source update, and published the matching GitHub release asset.
+
+## v0.1.0.0-AMC20260502.10 - 02.05.2026
+
+### NSF Hang Mitigation Pass
+
+- Moved NSF playback away from the worst blocking path by disabling automatic rendered-preview startup for NSF files.
+- Routed NSF song playback through the imported trace sequencer as a temporary responsiveness fix.
+- Reduced NSF trace import cost by tracing fewer subtunes, tightening wall-clock budgets, and stopping after repeated 6502 play-call timeouts.
+- Changed NSF audio conversion to prefer the sequencer path where possible to avoid renderer lockups during export.
+- Ran a 50-file NSF batch smoke test with audible output from all sampled files.
+- Bumped the app informational version to `v0.1.0.0-AMC20260502.10`.
+- Bumped `amChipper.SidPlayer.dll` and `amChipper.NsfPlayer.dll` to `v0.1.7.0`.
+- Published the release asset `amChipper-v0.1.0.0-AMC20260502.10-win-x64.zip`.
 
 ## Unreleased - 02.05.2026
 

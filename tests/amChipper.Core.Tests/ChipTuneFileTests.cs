@@ -178,6 +178,25 @@ public sealed class ChipTuneFileTests
     }
 
     [Fact]
+    public void NsfStreamingRendererProducesBoundedAudibleChunks()
+    {
+        byte[] nsf = CreateNsf();
+        var renderer = InternalChipRenderer.CreateStreamingRenderer(nsf, "stream.nsf", 44100);
+        float[] buffer = new float[4096 * 2];
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < 12; i++)
+            renderer.Render(buffer, 4096, 2);
+        watch.Stop();
+
+        float peak = buffer.Max(sample => Math.Abs(sample));
+        Assert.Equal(ModuleFormat.NSF, renderer.Format);
+        Assert.Equal(44100, renderer.SampleRate);
+        Assert.True(watch.ElapsedMilliseconds < 1000, $"NSF stream chunk render took {watch.ElapsedMilliseconds}ms.");
+        Assert.True(peak > 0.0001f, $"Expected audible NSF stream peak, got {peak}.");
+    }
+
+    [Fact]
     public void InternalRendererRunsIncludedPsidProgram()
     {
         string sidPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "64s_2nd_Choice.sid"));

@@ -219,7 +219,9 @@ internal static class Program
             {
                 byte[] data = File.ReadAllBytes(file);
                 var metadata = ChipTuneFile.ReadMetadata(data, file);
-                float[] pcm = InternalChipRenderer.RenderStereoFloat(data, file, options.Seconds, SampleRate);
+                float[] pcm = metadata.Format == ModuleFormat.NSF
+                    ? RenderStreamingChip(data, file, options.Seconds, SampleRate)
+                    : InternalChipRenderer.RenderStereoFloat(data, file, options.Seconds, SampleRate);
                 var stats = Stats(pcm, Math.Min(pcm.Length / 2, options.Seconds * SampleRate));
                 var song = ChipTuneFile.ImportAsSong(data, file);
                 bool audible = stats.Peak > 0.0005f && stats.Rms > 0.00001;
@@ -238,6 +240,30 @@ internal static class Program
         foreach (var chunk in lines.Chunk(18))
             PrintPanel("FILES", chunk.ToArray());
         return failed == 0 && ok > 0 ? 0 : 2;
+    }
+
+    /// <summary>
+    /// Renders a chip file through the same bounded streaming path used by app playback.
+    /// </summary>
+    private static float[] RenderStreamingChip(byte[] data, string sourcePath, int seconds, int sampleRate)
+    {
+        seconds = Math.Clamp(seconds, 1, 120);
+        var renderer = InternalChipRenderer.CreateStreamingRenderer(data, sourcePath, sampleRate);
+        int frames = seconds * sampleRate;
+        float[] pcm = new float[frames * 2];
+        const int chunkFrames = 1024;
+        float[] chunk = new float[chunkFrames * 2];
+        int offset = 0;
+        while (offset < frames)
+        {
+            int framesThisChunk = Math.Min(chunkFrames, frames - offset);
+            Array.Clear(chunk, 0, framesThisChunk * 2);
+            renderer.Render(chunk, framesThisChunk, 2);
+            Array.Copy(chunk, 0, pcm, offset * 2, framesThisChunk * 2);
+            offset += framesThisChunk;
+        }
+
+        return pcm;
     }
 
     /// <summary>
@@ -269,7 +295,9 @@ internal static class Program
                 if (metadata.Format == ModuleFormat.NSF) nsf++;
                 if (metadata.Format == ModuleFormat.SID) sid++;
 
-                float[] pcm = InternalChipRenderer.RenderStereoFloat(data, file, options.Seconds, SampleRate);
+                float[] pcm = metadata.Format == ModuleFormat.NSF
+                    ? RenderStreamingChip(data, file, options.Seconds, SampleRate)
+                    : InternalChipRenderer.RenderStereoFloat(data, file, options.Seconds, SampleRate);
                 var stats = Stats(pcm, Math.Min(pcm.Length / 2, options.Seconds * SampleRate));
                 bool audible = stats.Peak > 0.0005f && stats.Rms > 0.00001;
                 if (audible) ok++; else silent++;

@@ -1911,21 +1911,35 @@ public sealed class MainViewModel : BaseViewModel
             && _useOriginalModulePlayback
             && !IsDirty;
 
+        Audio.UseChipStreamPlayer = false;
         if (_song.Format == ModuleFormat.NSF)
         {
-            AppLogger.Info($"[Transport] Using NSF trace sequencer playback scope={PlaybackScope} pattern={activePatternIndex} channel={activeChannel}");
-            _modulePreviewActive = false;
-            _modulePreviewPattern = -1;
-            _modulePreviewOrder = -1;
-            Audio.UseAudioFilePlayer = false;
-            Audio.UseModulePlayer = false;
-            Audio.Sequencer.SetSong(_song);
-            Audio.Sequencer.Play(
-                PlaybackScope,
-                activePatternIndex,
-                ResolvePlaybackStartRow(),
-                PlaybackScope == PlaybackScope.PianoRoll ? activeChannel : null,
-                songStartBeat);
+            if (PlaybackScope == PlaybackScope.Song && !IsDirty && TryLoadNsfStreamPlayback())
+            {
+                AppLogger.Info($"[Transport] Using live NSF stream playback scope={PlaybackScope} startBeat={songStartBeat:0.###}");
+                _modulePreviewActive = false;
+                _modulePreviewPattern = -1;
+                _modulePreviewOrder = -1;
+                Audio.UseAudioFilePlayer = false;
+                Audio.UseModulePlayer = false;
+                Audio.UseChipStreamPlayer = true;
+            }
+            else
+            {
+                AppLogger.Info($"[Transport] Using NSF trace sequencer playback scope={PlaybackScope} pattern={activePatternIndex} channel={activeChannel} dirty={IsDirty}");
+                _modulePreviewActive = false;
+                _modulePreviewPattern = -1;
+                _modulePreviewOrder = -1;
+                Audio.UseAudioFilePlayer = false;
+                Audio.UseModulePlayer = false;
+                Audio.Sequencer.SetSong(_song);
+                Audio.Sequencer.Play(
+                    PlaybackScope,
+                    activePatternIndex,
+                    ResolvePlaybackStartRow(),
+                    PlaybackScope == PlaybackScope.PianoRoll ? activeChannel : null,
+                    songStartBeat);
+            }
         }
         else if (ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format) && PlaybackScope == PlaybackScope.Song && !IsDirty)
         {
@@ -5280,6 +5294,42 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         finally
         {
             _chipPreviewRenderInFlight = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads the original NSF bytes into the bounded live chip-stream player.
+    /// </summary>
+    private bool TryLoadNsfStreamPlayback()
+    {
+        if (_song.Format != ModuleFormat.NSF)
+            return false;
+
+        try
+        {
+            string? chipSourcePath = ResolveChipSourcePath();
+            if (string.IsNullOrWhiteSpace(chipSourcePath))
+            {
+                AppLogger.Warning("[Transport] NSF stream playback unavailable: no original source path.");
+                return false;
+            }
+
+            byte[] bytes = _originalModuleData ?? _song.OriginalModuleData ?? File.ReadAllBytes(chipSourcePath);
+            if (bytes.Length == 0)
+            {
+                AppLogger.Warning("[Transport] NSF stream playback unavailable: empty source bytes.");
+                return false;
+            }
+
+            bool loaded = Audio.ChipStreamPlayer.Load(bytes, chipSourcePath, Audio.SampleRate);
+            if (!loaded)
+                AppLogger.Warning($"[Transport] NSF stream playback failed to initialise path=\"{chipSourcePath}\".");
+            return loaded;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warning($"[Transport] NSF stream playback failed: {ex.Message}");
+            return false;
         }
     }
 
