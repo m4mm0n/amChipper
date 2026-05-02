@@ -69,7 +69,7 @@ public sealed class MainViewModel : BaseViewModel
     /// Stores or exposes ThemeOptions.
     /// </summary>
     public ObservableCollection<string> ThemeOptions { get; } =
-        ["FL Grape", "Neon Studio", "Classic Tracker", "Amber CRT", "Midnight Pro", "Ice Matrix", "Magenta Circuit", "Carbon Lime", "Ruby Wave", "Ocean Lab", "Steel Mono", "Sunset Pop"];
+        ["FL Grape", "Neon Studio", "Classic Tracker", "Amber CRT", "Midnight Pro", "Ice Matrix", "Magenta Circuit", "Carbon Lime", "Ruby Wave", "Ocean Lab", "Steel Mono", "Sunset Pop", "Cyber Cyan", "Toxic Acid", "Royal Neon", "Graphite Gold"];
     /// <summary>
     /// Stores or exposes MidiExportPatternDefaults.
     /// </summary>
@@ -4062,6 +4062,8 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         string fileName = Path.GetFileName(name);
         if (string.IsNullOrWhiteSpace(fileName) && !string.IsNullOrWhiteSpace(path))
             fileName = Path.GetFileName(path);
+        if (!fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            return false;
 
         if (fileName.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
             fileName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
@@ -4081,9 +4083,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                fileName.Contains("mpg123", StringComparison.OrdinalIgnoreCase) ||
                fileName.Contains("vorbis", StringComparison.OrdinalIgnoreCase) ||
                fileName.Contains("ogg", StringComparison.OrdinalIgnoreCase) ||
-               fileName.Contains("zlib", StringComparison.OrdinalIgnoreCase) ||
-               fileName.Contains("libs directory", StringComparison.OrdinalIgnoreCase) ||
-               fileName.Contains("native search path", StringComparison.OrdinalIgnoreCase);
+               fileName.Contains("zlib", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -6394,6 +6394,62 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 ["TextSecondary"] = "#FFFFD9C0",
                 ["TextDisabled"] = "#FF9A756D"
             },
+            "CYBER CYAN" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF020B12",
+                ["BgPanel"] = "#FF071826",
+                ["BgControl"] = "#FF0C2638",
+                ["BgHover"] = "#FF123D58",
+                ["BgSelect"] = "#FF185373",
+                ["Accent"] = "#FF00B8FF",
+                ["AccentLight"] = "#FF7AF0FF",
+                ["Border"] = "#FF235D7A",
+                ["TextPrimary"] = "#FFF1FDFF",
+                ["TextSecondary"] = "#FFBDE9F8",
+                ["TextDisabled"] = "#FF5D7E8B"
+            },
+            "TOXIC ACID" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF080B04",
+                ["BgPanel"] = "#FF141B0B",
+                ["BgControl"] = "#FF24300F",
+                ["BgHover"] = "#FF3A5017",
+                ["BgSelect"] = "#FF56751E",
+                ["Accent"] = "#FFB7FF00",
+                ["AccentLight"] = "#FFE8FF78",
+                ["Border"] = "#FF6B8B2B",
+                ["TextPrimary"] = "#FFFAFFF0",
+                ["TextSecondary"] = "#FFE2F4B8",
+                ["TextDisabled"] = "#FF78845E"
+            },
+            "ROYAL NEON" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF090613",
+                ["BgPanel"] = "#FF151024",
+                ["BgControl"] = "#FF241939",
+                ["BgHover"] = "#FF38275D",
+                ["BgSelect"] = "#FF4B3481",
+                ["Accent"] = "#FF7C4DFF",
+                ["AccentLight"] = "#FFFF75E8",
+                ["Border"] = "#FF62478F",
+                ["TextPrimary"] = "#FFFFF3FF",
+                ["TextSecondary"] = "#FFE3C9FF",
+                ["TextDisabled"] = "#FF7F6A91"
+            },
+            "GRAPHITE GOLD" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF090909",
+                ["BgPanel"] = "#FF171717",
+                ["BgControl"] = "#FF252525",
+                ["BgHover"] = "#FF383329",
+                ["BgSelect"] = "#FF514526",
+                ["Accent"] = "#FFD8A72A",
+                ["AccentLight"] = "#FFFFE083",
+                ["Border"] = "#FF6F6040",
+                ["TextPrimary"] = "#FFFFFBF0",
+                ["TextSecondary"] = "#FFE0D6C0",
+                ["TextDisabled"] = "#FF827A6C"
+            },
             _ => new Dictionary<string, string>
             {
                 ["BgDeep"] = "#FF140A1D",
@@ -6498,6 +6554,10 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             "OCEAN" or "OCEAN LAB" => "Ocean Lab",
             "STEEL" or "STEEL MONO" => "Steel Mono",
             "SUNSET" or "SUNSET POP" => "Sunset Pop",
+            "CYBER" or "CYBER CYAN" => "Cyber Cyan",
+            "TOXIC" or "ACID" or "TOXIC ACID" => "Toxic Acid",
+            "ROYAL" or "ROYAL NEON" => "Royal Neon",
+            "GRAPHITE" or "GRAPHITE GOLD" => "Graphite Gold",
             _ => "FL Grape"
         };
     }

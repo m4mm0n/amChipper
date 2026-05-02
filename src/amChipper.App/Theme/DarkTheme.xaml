@@ -185,11 +185,58 @@
   </Style>
 
   <Style TargetType="ProgressBar">
-    <Setter Property="Background" Value="#FF17131F"/>
+    <Setter Property="Background" Value="{DynamicResource BgControl}"/>
     <Setter Property="Foreground" Value="{DynamicResource AccentLight}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Height" Value="8"/>
+    <Setter Property="Height" Value="10"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="5"
+                  ClipToBounds="True">
+            <Grid>
+              <Border Background="{DynamicResource PanelSheen}" Opacity="0.38"/>
+              <Rectangle x:Name="PART_Track" Fill="Transparent"/>
+              <Decorator x:Name="PART_Indicator"
+                         HorizontalAlignment="Left"
+                         ClipToBounds="True">
+                <Grid>
+                  <Border CornerRadius="5"
+                          Background="{DynamicResource FlStudioActive}"/>
+                  <Border CornerRadius="5"
+                          Background="{DynamicResource ButtonShine}"
+                          Opacity="0.7"/>
+                  <Border Height="1"
+                          VerticalAlignment="Bottom"
+                          Background="{DynamicResource AccentLight}"
+                          Opacity="0.65"/>
+                </Grid>
+              </Decorator>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Orientation" Value="Vertical">
+              <Setter TargetName="Root" Property="LayoutTransform">
+                <Setter.Value>
+                  <RotateTransform Angle="-90"/>
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsIndeterminate" Value="True">
+              <Setter TargetName="PART_Indicator" Property="Opacity" Value="0.78"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- ── Slider ────────────────────────────────────────────────────────────── -->

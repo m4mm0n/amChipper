@@ -288,6 +288,7 @@ public static class InternalChipRenderer
         private readonly int _sampleRate;
         private readonly int _playIntervalSamples;
         private int _nextPlaySample;
+        private int _playTimeoutStreak;
 
         private NsfRuntime(NsfProgram program, ChipTuneMetadata metadata, int sampleRate)
             : this(program, Math.Clamp(metadata.StartSong > 0 ? metadata.StartSong : program.StartSong, 1, program.SongCount), sampleRate)
@@ -314,7 +315,15 @@ public static class InternalChipRenderer
                 if (frame >= runtime._nextPlaySample)
                 {
                     runtime._cpu.Call(program.PlayAddress, runtime._cpu.A, runtime._cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 4);
+                    runtime._playTimeoutStreak = runtime._cpu.LastCallTimedOut
+                        ? Math.Min(runtime._playTimeoutStreak + 1, 12)
+                        : 0;
                     runtime._nextPlaySample += runtime._playIntervalSamples;
+                    if (runtime._playTimeoutStreak >= 6)
+                    {
+                        runtime._nextPlaySample += runtime._playIntervalSamples;
+                        runtime._playTimeoutStreak = 3;
+                    }
                 }
 
                 double sample = runtime._apu.RenderSample(sampleRate);
@@ -399,6 +408,7 @@ public static class InternalChipRenderer
         private double _frameSequencer;
         private double _dcInput;
         private double _dcOutput;
+        private double _lowPass;
         private int _frameStep;
         private bool _fiveStepFrameSequencer;
 
@@ -511,8 +521,10 @@ public static class InternalChipRenderer
             double fds = _fds.Render(sampleRate);
             double pulseOut = 0.00752 * (p1 + p2);
             double tndOut = 0.00851 * tri + 0.00494 * noi + 0.00335 * dpcm;
-            double expansion = vrc6 * 0.010 + vrc7 * 0.008 + mmc5 * 0.010 + n163 * 0.006 + s5b * 0.008 + fds * 0.010;
-            return DcBlock((pulseOut + tndOut + expansion) * 1.9);
+            double expansion = vrc6 * 0.009 + vrc7 * 0.007 + mmc5 * 0.009 + n163 * 0.0055 + s5b * 0.0075 + fds * 0.0095;
+            double mixed = DcBlock((pulseOut + tndOut + expansion) * 1.84);
+            _lowPass += (mixed - _lowPass) * 0.62;
+            return _lowPass;
         }
 
         private double DcBlock(double input)
@@ -2334,7 +2346,7 @@ public static class InternalChipRenderer
             {
                 _cpu.A = a;
                 _cpu.Call(address, maxInstructions, maxMilliseconds);
-                _badFrames = 0;
+                _badFrames = _cpu.LastCallTimedOut ? Math.Min(_badFrames + 1, 24) : 0;
             }
             catch (InvalidOperationException)
             {
@@ -2530,6 +2542,8 @@ public static class InternalChipRenderer
         private double _masterDcOutputLeft;
         private double _masterDcInputRight;
         private double _masterDcOutputRight;
+        private double _masterLowLeft;
+        private double _masterLowRight;
         /// <summary>
         /// Stores or exposes double.
         /// </summary>
@@ -2643,6 +2657,8 @@ public static class InternalChipRenderer
             double masterGain = is8580 ? 0.76 : 0.68;
             left = MasterDcBlock(left * masterGain, ref _masterDcInputLeft, ref _masterDcOutputLeft);
             right = MasterDcBlock(right * masterGain, ref _masterDcInputRight, ref _masterDcOutputRight);
+            left = MasterSmooth(left, ref _masterLowLeft);
+            right = MasterSmooth(right, ref _masterLowRight);
             return (SoftClip(left), SoftClip(right));
         }
 
@@ -2665,6 +2681,12 @@ public static class InternalChipRenderer
             previousInput = input;
             previousOutput = output;
             return output;
+        }
+
+        private static double MasterSmooth(double input, ref double previous)
+        {
+            previous += (input - previous) * 0.74;
+            return previous;
         }
 
         /// <summary>
@@ -2857,7 +2879,7 @@ public static class InternalChipRenderer
                     active++;
                 }
 
-                return active == 0 ? 0 : Math.Clamp(combined * 0.72, -1.0, 1.0);
+                return active == 0 ? 0 : Math.Clamp(combined * 0.66, -1.0, 1.0);
             }
 
             private double DcBlock(double input)
@@ -2951,6 +2973,7 @@ public static class InternalChipRenderer
         /// Stores or exposes _pc.
         /// </summary>
         private ushort _pc;
+        public bool LastCallTimedOut { get; private set; }
 
         public Mos6510(byte[] memory, Func<int, byte> ioRead, Action<int, byte> ioWrite)
         {
@@ -2964,6 +2987,7 @@ public static class InternalChipRenderer
         /// </summary>
         public void Call(ushort address, int maxInstructions, int maxMilliseconds = 25)
         {
+            LastCallTimedOut = false;
             PushWord(0xFFFF);
             _pc = address;
             var budget = Stopwatch.StartNew();
@@ -2973,7 +2997,10 @@ public static class InternalChipRenderer
                     return;
 
                 if ((i & 0x7FF) == 0 && budget.ElapsedMilliseconds > maxMilliseconds)
+                {
+                    LastCallTimedOut = true;
                     return;
+                }
             }
         }
 

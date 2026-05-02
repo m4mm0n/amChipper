@@ -8,7 +8,7 @@ namespace amChipper.NsfPlayer;
 /// </summary>
 public sealed class NsfChipPlayer
 {
-    public const string PluginVersion = "v0.1.3.0";
+    public const string PluginVersion = "v0.1.4.0";
 
     public ChipTuneMetadata ReadMetadata(byte[] nsfData, string sourcePath) =>
         ChipTuneFile.ReadMetadata(nsfData, sourcePath);
