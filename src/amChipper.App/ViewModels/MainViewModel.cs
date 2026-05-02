@@ -69,7 +69,7 @@ public sealed class MainViewModel : BaseViewModel
     /// Stores or exposes ThemeOptions.
     /// </summary>
     public ObservableCollection<string> ThemeOptions { get; } =
-        ["FL Grape", "Neon Studio", "Classic Tracker", "Amber CRT", "Midnight Pro", "Ice Matrix", "Magenta Circuit", "Carbon Lime", "Ruby Wave", "Ocean Lab", "Steel Mono", "Sunset Pop", "Cyber Cyan", "Toxic Acid", "Royal Neon", "Graphite Gold"];
+        ["FL Grape", "Neon Studio", "Classic Tracker", "Amber CRT", "Midnight Pro", "Ice Matrix", "Magenta Circuit", "Carbon Lime", "Ruby Wave", "Ocean Lab", "Steel Mono", "Sunset Pop", "Cyber Cyan", "Toxic Acid", "Royal Neon", "Graphite Gold", "Circuit Blue", "Laser Orange", "Vapor Glass", "Terminal Green", "Hotline Pink", "Arctic Steel", "Copper Desk", "Deep Red"];
     /// <summary>
     /// Stores or exposes MidiExportPatternDefaults.
     /// </summary>
@@ -6450,6 +6450,118 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 ["TextSecondary"] = "#FFE0D6C0",
                 ["TextDisabled"] = "#FF827A6C"
             },
+            "CIRCUIT BLUE" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF030915",
+                ["BgPanel"] = "#FF08152A",
+                ["BgControl"] = "#FF102341",
+                ["BgHover"] = "#FF173763",
+                ["BgSelect"] = "#FF214C88",
+                ["Accent"] = "#FF24B6FF",
+                ["AccentLight"] = "#FFA1F2FF",
+                ["Border"] = "#FF2A5C91",
+                ["TextPrimary"] = "#FFF3FAFF",
+                ["TextSecondary"] = "#FFC5DDF5",
+                ["TextDisabled"] = "#FF617590"
+            },
+            "LASER ORANGE" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF140705",
+                ["BgPanel"] = "#FF25110C",
+                ["BgControl"] = "#FF3B1C12",
+                ["BgHover"] = "#FF5B2B17",
+                ["BgSelect"] = "#FF7A3D1F",
+                ["Accent"] = "#FFFF7028",
+                ["AccentLight"] = "#FFFFC75B",
+                ["Border"] = "#FF8B5430",
+                ["TextPrimary"] = "#FFFFF6ED",
+                ["TextSecondary"] = "#FFFFD3B5",
+                ["TextDisabled"] = "#FF9A7364"
+            },
+            "VAPOR GLASS" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF0A0718",
+                ["BgPanel"] = "#FF151029",
+                ["BgControl"] = "#FF241B3C",
+                ["BgHover"] = "#FF372B5B",
+                ["BgSelect"] = "#FF4B3B7A",
+                ["Accent"] = "#FF62F2FF",
+                ["AccentLight"] = "#FFFF85F3",
+                ["Border"] = "#FF67528F",
+                ["TextPrimary"] = "#FFFFF8FF",
+                ["TextSecondary"] = "#FFD8D0FF",
+                ["TextDisabled"] = "#FF81749A"
+            },
+            "TERMINAL GREEN" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF010806",
+                ["BgPanel"] = "#FF06140F",
+                ["BgControl"] = "#FF0C2419",
+                ["BgHover"] = "#FF143B28",
+                ["BgSelect"] = "#FF1B5737",
+                ["Accent"] = "#FF20F27E",
+                ["AccentLight"] = "#FFA0FFC5",
+                ["Border"] = "#FF28734C",
+                ["TextPrimary"] = "#FFF0FFF5",
+                ["TextSecondary"] = "#FFB8F1CE",
+                ["TextDisabled"] = "#FF557A65"
+            },
+            "HOTLINE PINK" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF160513",
+                ["BgPanel"] = "#FF2A0C24",
+                ["BgControl"] = "#FF421439",
+                ["BgHover"] = "#FF662054",
+                ["BgSelect"] = "#FF8A2D70",
+                ["Accent"] = "#FFFF4DB8",
+                ["AccentLight"] = "#FFFFB36E",
+                ["Border"] = "#FF994A79",
+                ["TextPrimary"] = "#FFFFF3FB",
+                ["TextSecondary"] = "#FFFFC9E9",
+                ["TextDisabled"] = "#FF9B667F"
+            },
+            "ARCTIC STEEL" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF071014",
+                ["BgPanel"] = "#FF111D24",
+                ["BgControl"] = "#FF1B2A33",
+                ["BgHover"] = "#FF2A3F4C",
+                ["BgSelect"] = "#FF385869",
+                ["Accent"] = "#FF73C7FF",
+                ["AccentLight"] = "#FFE1F6FF",
+                ["Border"] = "#FF4B6978",
+                ["TextPrimary"] = "#FFF7FCFF",
+                ["TextSecondary"] = "#FFC8DCE6",
+                ["TextDisabled"] = "#FF72838B"
+            },
+            "COPPER DESK" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF100907",
+                ["BgPanel"] = "#FF211410",
+                ["BgControl"] = "#FF33211B",
+                ["BgHover"] = "#FF4C342A",
+                ["BgSelect"] = "#FF6A4937",
+                ["Accent"] = "#FFE78A3A",
+                ["AccentLight"] = "#FFFFD094",
+                ["Border"] = "#FF805D45",
+                ["TextPrimary"] = "#FFFFF8F0",
+                ["TextSecondary"] = "#FFEBCDB6",
+                ["TextDisabled"] = "#FF8A7668"
+            },
+            "DEEP RED" => new Dictionary<string, string>
+            {
+                ["BgDeep"] = "#FF0F0205",
+                ["BgPanel"] = "#FF1D080D",
+                ["BgControl"] = "#FF2F1018",
+                ["BgHover"] = "#FF4A1A27",
+                ["BgSelect"] = "#FF692334",
+                ["Accent"] = "#FFFF315D",
+                ["AccentLight"] = "#FFFF9BAB",
+                ["Border"] = "#FF80384A",
+                ["TextPrimary"] = "#FFFFF3F5",
+                ["TextSecondary"] = "#FFFFC7CF",
+                ["TextDisabled"] = "#FF8C5E68"
+            },
             _ => new Dictionary<string, string>
             {
                 ["BgDeep"] = "#FF140A1D",
@@ -6558,6 +6670,14 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             "TOXIC" or "ACID" or "TOXIC ACID" => "Toxic Acid",
             "ROYAL" or "ROYAL NEON" => "Royal Neon",
             "GRAPHITE" or "GRAPHITE GOLD" => "Graphite Gold",
+            "CIRCUIT" or "CIRCUIT BLUE" => "Circuit Blue",
+            "LASER" or "LASER ORANGE" => "Laser Orange",
+            "VAPOR" or "VAPOR GLASS" => "Vapor Glass",
+            "TERMINAL" or "TERMINAL GREEN" => "Terminal Green",
+            "HOTLINE" or "HOTLINE PINK" => "Hotline Pink",
+            "ARCTIC" or "ARCTIC STEEL" => "Arctic Steel",
+            "COPPER" or "COPPER DESK" => "Copper Desk",
+            "DEEP RED" or "RED" => "Deep Red",
             _ => "FL Grape"
         };
     }

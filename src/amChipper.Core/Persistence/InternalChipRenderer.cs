@@ -289,6 +289,7 @@ public static class InternalChipRenderer
         private readonly int _playIntervalSamples;
         private int _nextPlaySample;
         private int _playTimeoutStreak;
+        private int _deferredPlayCalls;
 
         private NsfRuntime(NsfProgram program, ChipTuneMetadata metadata, int sampleRate)
             : this(program, Math.Clamp(metadata.StartSong > 0 ? metadata.StartSong : program.StartSong, 1, program.SongCount), sampleRate)
@@ -314,15 +315,23 @@ public static class InternalChipRenderer
             {
                 if (frame >= runtime._nextPlaySample)
                 {
-                    runtime._cpu.Call(program.PlayAddress, runtime._cpu.A, runtime._cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 4);
-                    runtime._playTimeoutStreak = runtime._cpu.LastCallTimedOut
-                        ? Math.Min(runtime._playTimeoutStreak + 1, 12)
-                        : 0;
+                    if (runtime._deferredPlayCalls > 0)
+                    {
+                        runtime._deferredPlayCalls--;
+                    }
+                    else
+                    {
+                        runtime._cpu.Call(program.PlayAddress, runtime._cpu.A, runtime._cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 3);
+                        runtime._playTimeoutStreak = runtime._cpu.LastCallTimedOut
+                            ? Math.Min(runtime._playTimeoutStreak + 1, 16)
+                            : 0;
+                    }
+
                     runtime._nextPlaySample += runtime._playIntervalSamples;
                     if (runtime._playTimeoutStreak >= 6)
                     {
-                        runtime._nextPlaySample += runtime._playIntervalSamples;
-                        runtime._playTimeoutStreak = 3;
+                        runtime._deferredPlayCalls = Math.Min(runtime._deferredPlayCalls + 1, 4);
+                        runtime._playTimeoutStreak = 4;
                     }
                 }
 
@@ -521,9 +530,9 @@ public static class InternalChipRenderer
             double fds = _fds.Render(sampleRate);
             double pulseOut = 0.00752 * (p1 + p2);
             double tndOut = 0.00851 * tri + 0.00494 * noi + 0.00335 * dpcm;
-            double expansion = vrc6 * 0.009 + vrc7 * 0.007 + mmc5 * 0.009 + n163 * 0.0055 + s5b * 0.0075 + fds * 0.0095;
-            double mixed = DcBlock((pulseOut + tndOut + expansion) * 1.84);
-            _lowPass += (mixed - _lowPass) * 0.62;
+            double expansion = vrc6 * 0.0085 + vrc7 * 0.0068 + mmc5 * 0.0085 + n163 * 0.0052 + s5b * 0.0072 + fds * 0.0092;
+            double mixed = DcBlock((pulseOut + tndOut + expansion) * 1.78);
+            _lowPass += (mixed - _lowPass) * 0.58;
             return _lowPass;
         }
 
@@ -1743,10 +1752,22 @@ public static class InternalChipRenderer
                 case 0xBF: A = X = Read((ushort)(Abs() + Y)); SetZn(A); break;
                 case 0xA3: A = X = Read(IndX()); SetZn(A); break;
                 case 0xB3: A = X = Read((ushort)(IndYBase() + Y)); SetZn(A); break;
+                case 0xAB: A = X = Fetch(); SetZn(A); break;
                 case 0x87: Write(Zp(), (byte)(A & X)); break;
                 case 0x97: Write((byte)(Zp() + Y), (byte)(A & X)); break;
                 case 0x8F: Write(Abs(), (byte)(A & X)); break;
                 case 0x83: Write(IndX(), (byte)(A & X)); break;
+                case 0x0B:
+                case 0x2B: Anc(Fetch()); break;
+                case 0x4B: Alr(Fetch()); break;
+                case 0x6B: Arr(Fetch()); break;
+                case 0x8B: A = (byte)(X & Fetch()); SetZn(A); break;
+                case 0xCB: Axs(Fetch()); break;
+                case 0x93: Ahx((ushort)(IndYBase() + Y)); break;
+                case 0x9B: Tas((ushort)(Abs() + Y)); break;
+                case 0x9C: Shy((ushort)(Abs() + X)); break;
+                case 0x9E: Shx((ushort)(Abs() + Y)); break;
+                case 0x9F: Ahx((ushort)(Abs() + Y)); break;
                 case 0x02:
                 case 0x12:
                 case 0x22:
@@ -1881,6 +1902,35 @@ public static class InternalChipRenderer
         private void Rla(int address) { byte value = Rol(Read((ushort)address)); Write(address, value); A &= value; SetZn(A); }
         private void Sre(int address) { byte value = Lsr(Read((ushort)address)); Write(address, value); A ^= value; SetZn(A); }
         private void Rra(int address) { byte value = Ror(Read((ushort)address)); Write(address, value); Adc(value); }
+        private void Anc(byte value) { A &= value; SetZn(A); Set(FlagC, (A & 0x80) != 0); }
+        private void Alr(byte value) { A &= value; A = Lsr(A); }
+        private void Arr(byte value)
+        {
+            A &= value;
+            A = (byte)((A >> 1) | (Get(FlagC) ? 0x80 : 0));
+            SetZn(A);
+            Set(FlagC, (A & 0x40) != 0);
+            Set(FlagV, (((A >> 6) ^ (A >> 5)) & 1) != 0);
+        }
+
+        private void Axs(byte value)
+        {
+            int source = A & X;
+            int result = source - value;
+            Set(FlagC, source >= value);
+            X = (byte)result;
+            SetZn(X);
+        }
+
+        private void Ahx(ushort address) => Write(address, (byte)(A & X & (((address >> 8) + 1) & 0xFF)));
+        private void Tas(ushort address)
+        {
+            _sp = (byte)(A & X);
+            Write(address, (byte)(_sp & (((address >> 8) + 1) & 0xFF)));
+        }
+
+        private void Shy(ushort address) => Write(address, (byte)(Y & (((address >> 8) + 1) & 0xFF)));
+        private void Shx(ushort address) => Write(address, (byte)(X & (((address >> 8) + 1) & 0xFF)));
         private void Branch(bool condition) { sbyte rel = unchecked((sbyte)Fetch()); if (condition) _pc = (ushort)(_pc + rel); }
         private void Cmp(byte left, byte right) { int value = left - right; Set(FlagC, left >= right); SetZn((byte)value); }
         private void Bit(byte value) { Set(FlagZ, (A & value) == 0); Set(FlagV, (value & 0x40) != 0); Set(FlagN, (value & 0x80) != 0); }
@@ -2137,6 +2187,7 @@ public static class InternalChipRenderer
         /// Stores or exposes _badFrames.
         /// </summary>
         private int _badFrames;
+        private int _deferredPlayFrames;
 
         private SidRuntime(SidProgram program)
         {
@@ -2170,7 +2221,7 @@ public static class InternalChipRenderer
                 if (frame >= nextTick)
                 {
                     runtime._io.BeginFrame();
-                    runtime.Call(program.PlayAddress, 0, 240000, maxMilliseconds: 6);
+                    runtime.PlayFrame(program.PlayAddress);
                     nextTick += samplesPerTick;
                 }
 
@@ -2357,6 +2408,19 @@ public static class InternalChipRenderer
                 if (_badFrames > 3)
                     throw;
             }
+        }
+
+        private void PlayFrame(ushort address)
+        {
+            if (_deferredPlayFrames > 0)
+            {
+                _deferredPlayFrames--;
+                return;
+            }
+
+            Call(address, 0, 240000, maxMilliseconds: 4);
+            if (_badFrames >= 8)
+                _deferredPlayFrames = Math.Min(_deferredPlayFrames + 1, 3);
         }
 
         /// <summary>
