@@ -1,17 +1,17 @@
-# amChipper Initial Repository Release
+# amChipper v0.1.0.0-AMC20260502.10
 
-This release establishes the private GitHub repository structure for amChipper.
+This release focuses on stopping NSF playback from freezing the WPF app and keeping the release package current.
 
 ## Included
 
-- GPLv3 source license and contributor relicensing terms.
-- Solution layout with QuickLog linked as a Git submodule in `src/QuickLog`.
-- Git ignore rules that keep build output and third-party music corpora out of the source repository.
-- README, contribution guide, security policy, wiki-ready documentation, and GitHub templates.
-- Existing WPF DAW source, player libraries, language tool, tests, assets, changelog, and user guide.
-- Release workflow for packaging the validated `Ready2Release` folder as a Windows x64 zip and publishing it to GitHub Releases.
-- About-window feature support, changelog, runtime, and log-viewer tabs for in-app diagnostics.
+- NSF song playback now uses the imported trace sequencer path instead of forcing a synchronous rendered WAV cache.
+- Opening NSF files no longer starts a background preview render automatically.
+- NSF trace import has tighter wall-clock budgets and exits after repeated play-call timeouts.
+- NSF WAV/MP3 conversion uses the trace sequencer path by default to avoid renderer lockups.
+- App build bumped to `v0.1.0.0-AMC20260502.10`.
+- SID and NSF plugin assemblies bumped to `v0.1.7.0`.
+- Ready2Release has been rebuilt, language packs regenerated, and the published executable smoke-tested.
 
 ## Notes
 
-SID/NSF emulation and chip-to-tracker reconstruction are active development areas. The public repository should not include external SID/NSF/tracker music libraries unless redistribution rights are explicit.
+SID/NSF emulation and chip-to-tracker reconstruction are still active development areas. This build prioritizes keeping the DAW responsive for problematic NSF drivers while preserving editable trace playback and live meters.

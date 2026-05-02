@@ -1911,7 +1911,23 @@ public sealed class MainViewModel : BaseViewModel
             && _useOriginalModulePlayback
             && !IsDirty;
 
-        if (ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format) && PlaybackScope == PlaybackScope.Song && !IsDirty)
+        if (_song.Format == ModuleFormat.NSF)
+        {
+            AppLogger.Info($"[Transport] Using NSF trace sequencer playback scope={PlaybackScope} pattern={activePatternIndex} channel={activeChannel}");
+            _modulePreviewActive = false;
+            _modulePreviewPattern = -1;
+            _modulePreviewOrder = -1;
+            Audio.UseAudioFilePlayer = false;
+            Audio.UseModulePlayer = false;
+            Audio.Sequencer.SetSong(_song);
+            Audio.Sequencer.Play(
+                PlaybackScope,
+                activePatternIndex,
+                ResolvePlaybackStartRow(),
+                PlaybackScope == PlaybackScope.PianoRoll ? activeChannel : null,
+                songStartBeat);
+        }
+        else if (ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format) && PlaybackScope == PlaybackScope.Song && !IsDirty)
         {
             _modulePreviewActive = false;
             Audio.UseModulePlayer = false;
@@ -4311,7 +4327,8 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 AppLogger.Info(
                     $"[Document] Imported chip tune path=\"{dlg.FileName}\" format={_song.Format} type={_song.SourceModuleType} ext={_song.SourceModuleExtension} bytes={data.Length}");
                 StatusText = $"Loaded chip tune: {Path.GetFileName(dlg.FileName)} - internal renderer ready";
-                _ = TryRenderChipPreviewForPlaybackAsync();
+                if (_song.Format != ModuleFormat.NSF)
+                    _ = TryRenderChipPreviewForPlaybackAsync();
                 return;
             }
 
@@ -5006,6 +5023,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         if (ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format))
         {
+            if (_song.Format == ModuleFormat.NSF)
+                return RenderSongWithSequencer(sampleRate, seconds);
+
             string? chipSourcePath = ResolveChipSourcePath();
             if (string.IsNullOrWhiteSpace(chipSourcePath))
                 throw new InvalidOperationException("No original SID/NSF source is available for audio conversion.");
@@ -5162,6 +5182,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private bool TryRenderChipPreviewForPlayback()
     {
+        if (_song.Format == ModuleFormat.NSF)
+            return false;
+
         string? chipSourcePath = ResolveChipSourcePath();
         if (!ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format) ||
             string.IsNullOrWhiteSpace(chipSourcePath))
@@ -5201,6 +5224,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private async Task<bool> TryRenderChipPreviewForPlaybackAsync()
     {
+        if (_song.Format == ModuleFormat.NSF)
+            return false;
+
         string? chipSourcePath = ResolveChipSourcePath();
         if (!ModuleFormatCatalog.IsEmulatedChipFormat(_song.Format) ||
             string.IsNullOrWhiteSpace(chipSourcePath))

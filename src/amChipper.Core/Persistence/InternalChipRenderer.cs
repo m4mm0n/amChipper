@@ -362,6 +362,17 @@ public static class InternalChipRenderer
                     break;
 
                 runtime._cpu.Call(program.PlayAddress, runtime._cpu.A, runtime._cpu.X, maxInstructions: PlayInstructionBudget, maxMilliseconds: 4);
+                if (runtime._cpu.LastCallTimedOut)
+                {
+                    runtime._playTimeoutStreak++;
+                    if (runtime._playTimeoutStreak >= 3)
+                        break;
+                }
+                else
+                {
+                    runtime._playTimeoutStreak = 0;
+                }
+
                 for (int i = 0; i < samplesPerRow; i++)
                     runtime._apu.RenderSample(runtime._sampleRate);
 

@@ -269,7 +269,7 @@ public static class ChipTuneFile
 
         const int rowsPerPattern = 64;
         int traceRows = EstimateNsfTraceRows(song, metadata, rowsPerPattern);
-        int subtunesToTrace = Math.Clamp(metadata.SongCount, 1, 3);
+        int subtunesToTrace = Math.Clamp(metadata.SongCount, 1, 2);
         var traceBudget = Stopwatch.StartNew();
         double beats = rowsPerPattern / (double)Math.Max(song.RowsPerBeat, 1);
         for (int subtune = 1; subtune <= subtunesToTrace; subtune++)
@@ -289,7 +289,7 @@ public static class ChipTuneFile
             IReadOnlyList<NsfVoiceRow> rows;
             try
             {
-                int remainingMs = Math.Max(250, 1400 - (int)traceBudget.ElapsedMilliseconds);
+                int remainingMs = Math.Clamp(550 - (int)traceBudget.ElapsedMilliseconds, 90, 220);
                 rows = InternalChipRenderer.InspectNsfVoiceRows(data, traceRows, subtune, remainingMs);
                 if (!rows.Any(row => row.Pitch is > 0 and < (byte)SpecialNote.NoteOff))
                     rows = BuildFallbackNsfRows(data, traceRows, subtune);
@@ -342,7 +342,7 @@ public static class ChipTuneFile
                 }
             }
 
-            if (traceBudget.ElapsedMilliseconds > 1500 && subtune < subtunesToTrace)
+            if (traceBudget.ElapsedMilliseconds > 650 && subtune < subtunesToTrace)
             {
                 song.Comment += $" NSF trace budget reached after subtune {subtune}; remaining subtunes use source playback/render paths.";
                 break;
@@ -819,16 +819,16 @@ public static class ChipTuneFile
     {
         int baseRows = metadata.ProgramLength switch
         {
-            <= 4096 => rowsPerPattern * 4,
-            <= 16384 => rowsPerPattern * 8,
-            <= 32768 => rowsPerPattern * 12,
-            _ => rowsPerPattern * 16
+            <= 4096 => rowsPerPattern * 3,
+            <= 16384 => rowsPerPattern * 5,
+            <= 32768 => rowsPerPattern * 6,
+            _ => rowsPerPattern * 8
         };
 
         if (metadata.SongCount > 1)
-            baseRows = Math.Min(baseRows, rowsPerPattern * 8);
+            baseRows = Math.Min(baseRows, rowsPerPattern * 5);
 
-        return Math.Clamp(baseRows, rowsPerPattern, rowsPerPattern * 64);
+        return Math.Clamp(baseRows, rowsPerPattern, rowsPerPattern * 12);
     }
 
     /// <summary>
