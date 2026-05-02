@@ -8,10 +8,4 @@
     <AssemblyName>amChipper.Core</AssemblyName>
     <Platforms>x64</Platforms>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Persistence\ChipTuneFile.cs" />
-    <Compile Remove="Persistence\InternalChipRenderer.cs" />
-    <Compile Remove="Persistence\NativeChipModuleFile.cs" />
-    <Compile Remove="Persistence\XmModuleExporter.cs" />
-  </ItemGroup>
 </Project>

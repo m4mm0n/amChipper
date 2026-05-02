@@ -13,7 +13,4 @@
     <ProjectReference Include="..\amChipper.Core\amChipper.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\amChipper.Core\Persistence\NativeChipModuleFile.cs" Link="Trackers\NativeChipModuleFile.cs" />
-  </ItemGroup>
 </Project>

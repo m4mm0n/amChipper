@@ -383,6 +383,8 @@ public sealed class ChipStreamPlayer
     private readonly object _lock = new();
     private amChipper.Core.Persistence.IChipStreamRenderer? _renderer;
     private string? _sourcePath;
+    private int _sampleRate = 44100;
+    private double _positionSecs;
 
     public ChipStreamPlayer(IAppLogger log) => _log = log;
 
@@ -392,6 +394,14 @@ public sealed class ChipStreamPlayer
     public bool IsLoaded
     {
         get { lock (_lock) return _renderer is not null; }
+    }
+
+    /// <summary>
+    /// Current stream playback position in seconds.
+    /// </summary>
+    public double PositionSecs
+    {
+        get { lock (_lock) return _positionSecs; }
     }
 
     /// <summary>
@@ -405,6 +415,8 @@ public sealed class ChipStreamPlayer
             {
                 _renderer = InternalChipRenderer.CreateStreamingRenderer(data, sourcePath, sampleRate);
                 _sourcePath = sourcePath;
+                _sampleRate = Math.Max(1, _renderer.SampleRate);
+                _positionSecs = 0;
                 _log.Info($"[ChipStream] Loaded {_renderer.Format} stream path=\"{sourcePath}\" sampleRate={_renderer.SampleRate}");
                 return true;
             }
@@ -412,6 +424,7 @@ public sealed class ChipStreamPlayer
             {
                 _renderer = null;
                 _sourcePath = null;
+                _positionSecs = 0;
                 _log.Warning($"[ChipStream] Failed to load stream path=\"{sourcePath}\": {ex.Message}");
                 return false;
             }
@@ -431,6 +444,7 @@ public sealed class ChipStreamPlayer
             try
             {
                 _renderer.Render(buffer, frameCount, outputChannels);
+                _positionSecs += frameCount / (double)_sampleRate;
                 return frameCount;
             }
             catch (Exception ex)
@@ -438,6 +452,7 @@ public sealed class ChipStreamPlayer
                 _log.Warning($"[ChipStream] Stream render stopped path=\"{_sourcePath}\": {ex.Message}");
                 _renderer = null;
                 _sourcePath = null;
+                _positionSecs = 0;
                 return 0;
             }
         }
@@ -452,6 +467,7 @@ public sealed class ChipStreamPlayer
         {
             _renderer = null;
             _sourcePath = null;
+            _positionSecs = 0;
         }
     }
 }

@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\amChipper.AmcPlayer\amChipper.AmcPlayer.csproj" />
     <ProjectReference Include="..\..\src\amChipper.SidPlayer\amChipper.SidPlayer.csproj" />
     <ProjectReference Include="..\..\src\amChipper.NsfPlayer\amChipper.NsfPlayer.csproj" />
+    <ProjectReference Include="..\..\src\amChipper.TrackerPlayer\amChipper.TrackerPlayer.csproj" />
   </ItemGroup>
 
 </Project>

@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "amChipper.NsfPlayer", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "amChipper.LanguageTool", "src\amChipper.LanguageTool\amChipper.LanguageTool.csproj", "{5B6B3291-9FBC-4CFA-B778-C83C8E9D7F9B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "amChipper.TrackerPlayer", "src\amChipper.TrackerPlayer\amChipper.TrackerPlayer.csproj", "{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -157,6 +159,18 @@ Global
 		{5B6B3291-9FBC-4CFA-B778-C83C8E9D7F9B}.Release|Any CPU.Build.0 = Release|x64
 		{5B6B3291-9FBC-4CFA-B778-C83C8E9D7F9B}.Release|x86.ActiveCfg = Release|x64
 		{5B6B3291-9FBC-4CFA-B778-C83C8E9D7F9B}.Release|x86.Build.0 = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|x64.ActiveCfg = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|x64.Build.0 = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|Any CPU.Build.0 = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|x86.ActiveCfg = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Debug|x86.Build.0 = Debug|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|x64.ActiveCfg = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|x64.Build.0 = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|Any CPU.ActiveCfg = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|Any CPU.Build.0 = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|x86.ActiveCfg = Release|x64
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -168,5 +182,6 @@ Global
 		{FF7313BE-BC18-4C90-B7B7-49C2C5144162} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5C1BB887-2E99-44B2-943C-B773DC1CD97D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5B6B3291-9FBC-4CFA-B778-C83C8E9D7F9B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{6108B391-CF60-4EFC-A3E5-99221E1E1A3D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

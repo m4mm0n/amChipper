@@ -1935,6 +1935,8 @@ public sealed class MainViewModel : BaseViewModel
                     UpdateSpectrum(analyzerBuffer, limit);
                     if (Audio.UseModulePlayer)
                         ApplyModuleVuMeters();
+                    else if (Audio.UseChipStreamPlayer)
+                        ApplyTimedSourceTrackMeters(Audio.ChipStreamPlayer.PositionSecs, peak);
                     else if (Audio.UseAudioFilePlayer)
                         ApplyRenderedAudioTrackMeters(peak);
                     UpdateRuntimeTempoReadout();
@@ -6474,6 +6476,13 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private void UpdateRuntimeTempoReadout()
     {
+        if (Audio.UseChipStreamPlayer && Audio.ChipStreamPlayer.IsLoaded)
+        {
+            RuntimeBpmLabel = $"{ModuleFormatCatalog.GetDisplayLabel(_song)} live chip stream";
+            OnPropertyChanged(nameof(Bpm));
+            return;
+        }
+
         if (Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded)
         {
             RuntimeBpmLabel = $"{ModuleFormatCatalog.GetDisplayLabel(_song)} rendered audio";
@@ -6499,12 +6508,16 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private void UpdateTransportReadout()
     {
-        double position = Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded
+        double position = Audio.UseChipStreamPlayer && Audio.ChipStreamPlayer.IsLoaded
+            ? Audio.ChipStreamPlayer.PositionSecs
+            : Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded
             ? Audio.AudioFilePlayer.PositionSecs
             : Audio.UseModulePlayer && Audio.ModulePlayer.IsLoaded
             ? Audio.ModulePlayer.PositionSecs
             : SongEditor.PlayheadBeat * 60.0 / Math.Max(_song.Bpm, 1);
-        double duration = Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded
+        double duration = Audio.UseChipStreamPlayer && Audio.ChipStreamPlayer.IsLoaded
+            ? EstimateSongDurationSeconds()
+            : Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded
             ? Audio.AudioFilePlayer.DurationSecs
             : Audio.UseModulePlayer && Audio.ModulePlayer.IsLoaded
             ? Audio.ModulePlayer.DurationSecs
@@ -6520,6 +6533,13 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         if (!IsPlaying)
             return;
+
+        if (Audio.UseChipStreamPlayer && Audio.ChipStreamPlayer.IsLoaded)
+        {
+            double beat = Audio.ChipStreamPlayer.PositionSecs * Math.Max(_song.Bpm, 1) / 60.0;
+            SyncEditorsToBeat(beat, "[ChipStreamPlayback]");
+            return;
+        }
 
         if (Audio.UseAudioFilePlayer && Audio.AudioFilePlayer.IsLoaded)
         {
@@ -6756,10 +6776,15 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
 
     private void ApplyRenderedAudioTrackMeters(float masterPeak)
     {
+        ApplyTimedSourceTrackMeters(Audio.AudioFilePlayer.PositionSecs, masterPeak);
+    }
+
+    private void ApplyTimedSourceTrackMeters(double positionSecs, float masterPeak)
+    {
         if (_song.Tracks.Count == 0 || _song.Patterns.Count == 0)
             return;
 
-        double beat = Audio.AudioFilePlayer.PositionSecs * Math.Max(_song.Bpm, 1) / 60.0;
+        double beat = Math.Max(0, positionSecs) * Math.Max(_song.Bpm, 1) / 60.0;
         int patternIndex = PatternEditor.CurrentPatternIndex;
         int row = 0;
         if (TryResolveOrderAtBeat(beat, out int order, out int resolvedRow))
