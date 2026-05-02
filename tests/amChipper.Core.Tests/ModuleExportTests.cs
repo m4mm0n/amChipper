@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Text;
 using amChipper.Core.Models;
 using amChipper.Core.Persistence;
 
@@ -469,76 +471,111 @@ public sealed class ModuleExportTests
     [Fact]
     public void FLScoreImport_ReadsBundledBasicScore()
     {
-        string? root = AppContext.BaseDirectory;
-        for (int i = 0; i < 8 && root is not null; i++)
+        string path = Path.Combine(Path.GetTempPath(), "amChipper-tests", $"{Guid.NewGuid():N}.fsc");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        try
         {
-            string candidate = Path.Combine(root, "4 steps.fsc");
-            if (File.Exists(candidate))
-            {
-                var notes = FLScoreFile.ImportPatternChannel(candidate, 4);
-                Assert.Equal(4, notes.Count);
-                Assert.All(notes, n => Assert.Equal(48, n.Pitch));
-                Assert.Equal([0L, 4L, 8L, 12L], notes.Select(n => n.StartTick).ToArray());
-                return;
-            }
+            Song song = Song.CreateDefault();
+            song.Patterns[0].SetNote(0, 0, new Note { Pitch = 48, InstrumentIndex = 1, Volume = 50, DurationTicks = 2 });
+            song.Patterns[0].SetNote(4, 0, new Note { Pitch = 48, InstrumentIndex = 1, Volume = 50, DurationTicks = 2 });
+            song.Patterns[0].SetNote(8, 0, new Note { Pitch = 48, InstrumentIndex = 1, Volume = 50, DurationTicks = 2 });
+            song.Patterns[0].SetNote(12, 0, new Note { Pitch = 48, InstrumentIndex = 1, Volume = 50, DurationTicks = 2 });
+            FLScoreFile.ExportPatternChannel(song, 0, 0, path);
 
-            root = Directory.GetParent(root)?.FullName;
+            var notes = FLScoreFile.ImportPatternChannel(path, 4);
+            Assert.Equal(4, notes.Count);
+            Assert.All(notes, n => Assert.Equal(48, n.Pitch));
+            Assert.Equal([0L, 4L, 8L, 12L], notes.Select(n => n.StartTick).ToArray());
         }
-
-        throw new FileNotFoundException("Bundled FSC sample was not found.", "4 steps.fsc");
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     [Fact]
     public void FLScoreImport_ReadsBundledFLStudioScoreLibrary()
     {
-        string? root = AppContext.BaseDirectory;
-        for (int i = 0; i < 8 && root is not null; i++)
+        string root = Path.Combine(Path.GetTempPath(), "amChipper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
         {
-            string candidate = Path.Combine(root, "flstudio_fsc");
-            if (Directory.Exists(candidate))
+            for (int i = 0; i < 101; i++)
             {
-                string[] files = Directory.GetFiles(candidate, "*.fsc", SearchOption.AllDirectories);
-                Assert.True(files.Length > 100);
-
-                foreach (string file in files)
-                {
-                    var notes = FLScoreFile.ImportPatternChannel(file, 4);
-                    Assert.NotEmpty(notes);
-                    Assert.All(notes, note => Assert.InRange(note.Pitch, (byte)1, (byte)119));
-                    Assert.True(notes.All(note => note.DurationTicks > 0), file);
-                }
-
-                return;
+                string file = Path.Combine(root, $"fixture-{i:000}.fsc");
+                Song song = Song.CreateDefault();
+                byte pitch = (byte)(36 + (i % 48));
+                song.Patterns[0].SetNote(i % 16, 0, new Note { Pitch = pitch, InstrumentIndex = 1, Volume = 48, DurationTicks = 4 });
+                FLScoreFile.ExportPatternChannel(song, 0, 0, file);
             }
 
-            root = Directory.GetParent(root)?.FullName;
-        }
+            string[] files = Directory.GetFiles(root, "*.fsc", SearchOption.AllDirectories);
+            Assert.True(files.Length > 100);
 
-        throw new DirectoryNotFoundException("Bundled FL Studio FSC library was not found.");
+            foreach (string file in files)
+            {
+                var notes = FLScoreFile.ImportPatternChannel(file, 4);
+                Assert.NotEmpty(notes);
+                Assert.All(notes, note => Assert.InRange(note.Pitch, (byte)1, (byte)119));
+                Assert.True(notes.All(note => note.DurationTicks > 0), file);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]
     public void FLScoreImport_ReadsModernFLStudioScoreLayout()
     {
-        string? root = AppContext.BaseDirectory;
-        for (int i = 0; i < 8 && root is not null; i++)
+        string path = Path.Combine(Path.GetTempPath(), "amChipper-tests", $"{Guid.NewGuid():N}.fsc");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        try
         {
-            string candidate = Path.Combine(root, "flstudio_fsc", "Quantization", "Alt shuffle.fsc");
-            if (File.Exists(candidate))
-            {
-                var notes = FLScoreFile.ImportPatternChannel(candidate, 4);
+            WriteModernFscFixture(path);
+            var notes = FLScoreFile.ImportPatternChannel(path, 4);
 
-                Assert.True(notes.Count >= 16);
-                Assert.All(notes, note => Assert.Equal(60, note.Pitch));
-                Assert.All(notes, note => Assert.InRange(note.Velocity, (byte)1, (byte)127));
-                Assert.True(notes.Select(note => note.StartTick).Distinct().Count() > 8);
-                return;
-            }
+            Assert.True(notes.Count >= 16);
+            Assert.All(notes, note => Assert.Equal(60, note.Pitch));
+            Assert.All(notes, note => Assert.InRange(note.Velocity, (byte)1, (byte)127));
+            Assert.True(notes.Select(note => note.StartTick).Distinct().Count() > 8);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
 
-            root = Directory.GetParent(root)?.FullName;
+    private static void WriteModernFscFixture(string path)
+    {
+        using var data = new MemoryStream();
+        byte[] record = new byte[24];
+        for (int i = 0; i < 16; i++)
+        {
+            Array.Clear(record);
+            BinaryPrimitives.WriteInt32LittleEndian(record.AsSpan(0, 4), i * 24);
+            record[5] = 0x40;
+            BinaryPrimitives.WriteInt32LittleEndian(record.AsSpan(8, 4), 24);
+            record[12] = 60;
+            record[21] = (byte)(80 + (i % 32));
+            record[22] = 0x80;
+            data.Write(record);
         }
 
-        throw new FileNotFoundException("Bundled modern FSC sample was not found.", "Alt shuffle.fsc");
+        using var file = File.Create(path);
+        file.Write(Encoding.ASCII.GetBytes("FLdt"));
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(length, (int)data.Length);
+        file.Write(length);
+        data.Position = 0;
+        data.CopyTo(file);
     }
 
     private static int FindInstrumentTailOffset(byte[] data)
