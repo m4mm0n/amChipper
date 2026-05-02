@@ -35,6 +35,17 @@ dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --
 
 The app intentionally moves dependency DLLs into `libs/` during build/publish and normalizes the runtime dependency map for that layout.
 
+## Release packaging
+
+The release artifact is the complete `Ready2Release` directory zipped as `amChipper-<tag>-win-x64.zip`. The GitHub release workflow can be run from a `v*` tag or manually from **Actions -> Release** with the tag input. It builds, tests, publishes, packages, uploads the artifact, and normalizes any existing release for the same tag so it is visible as a normal GitHub Release rather than a hidden draft/prerelease.
+
+For a local package from an already-published folder:
+
+```powershell
+$tag = git describe --tags --abbrev=0
+Compress-Archive -Path .\Ready2Release\* -DestinationPath "amChipper-$tag-win-x64.zip" -Force
+```
+
 ## Repository layout
 
 - `src/amChipper.App` - WPF application and UI.

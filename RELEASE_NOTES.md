@@ -9,6 +9,8 @@ This release establishes the private GitHub repository structure for amChipper.
 - Git ignore rules that keep build output and third-party music corpora out of the source repository.
 - README, contribution guide, security policy, wiki-ready documentation, and GitHub templates.
 - Existing WPF DAW source, player libraries, language tool, tests, assets, changelog, and user guide.
+- Release workflow for packaging the validated `Ready2Release` folder as a Windows x64 zip and publishing it to GitHub Releases.
+- About-window feature support, changelog, runtime, and log-viewer tabs for in-app diagnostics.
 
 ## Notes
 

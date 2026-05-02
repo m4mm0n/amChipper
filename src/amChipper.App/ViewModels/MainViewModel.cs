@@ -2939,9 +2939,11 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         var formatGrid = new GridView();
         formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnFormat"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Type)), Width = 78 });
         formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnExtension"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Extension)), Width = 82 });
-        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnName"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.DisplayName)), Width = 300 });
-        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnPlayback"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Playback)), Width = 160 });
-        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnExportEdit"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Export)), Width = 330 });
+        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnName"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.DisplayName)), Width = 230 });
+        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnPlayback"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Playback)), Width = 150 });
+        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnEngine"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Engine)), Width = 150 });
+        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnExportEdit"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Export)), Width = 220 });
+        formatGrid.Columns.Add(new GridViewColumn { Header = L("ColumnNotes"), DisplayMemberBinding = new System.Windows.Data.Binding(nameof(FormatSupportRow.Notes)), Width = 330 });
         formatList.View = formatGrid;
         ApplyThemedGridHeader(formatGrid);
 
@@ -2981,8 +2983,25 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             Foreground = accentLight,
             Margin = new Thickness(0, 0, 0, 10)
         };
+        var formatIntro = new TextBlock
+        {
+            Text = L("FormatFeatureSupportIntro"),
+            Foreground = textSecondary,
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 18,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+        var formatLegend = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
+        formatLegend.Children.Add(Card(new TextBlock { Text = "AMC: compressed native project + embedded exact source", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
+        formatLegend.Children.Add(Card(new TextBlock { Text = "XM/MOD: editable native patch path with row/effect retention", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
+        formatLegend.Children.Add(Card(new TextBlock { Text = "IT/S3M/OpenMPT: broad playback and render/convert support", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
+        formatLegend.Children.Add(Card(new TextBlock { Text = "SID/NSF: internal chip trace, audio render, and reconstructed editable rows", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
         DockPanel.SetDock(formatTitle, Dock.Top);
+        DockPanel.SetDock(formatIntro, Dock.Top);
+        DockPanel.SetDock(formatLegend, Dock.Top);
         formatPanel.Children.Add(formatTitle);
+        formatPanel.Children.Add(formatIntro);
+        formatPanel.Children.Add(formatLegend);
         formatPanel.Children.Add(formatList);
 
         var runtimePanel = new DockPanel { Margin = new Thickness(22, 18, 22, 16) };
@@ -3204,6 +3223,65 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         DockPanel.SetDock(buttons, Dock.Top);
         panel.Children.Add(buttons);
 
+        Border MetricCard(string caption, Brush brush, out TextBlock valueBlock)
+        {
+            valueBlock = new TextBlock
+            {
+                Text = "0",
+                Foreground = brush,
+                FontWeight = FontWeights.Bold,
+                FontSize = 18,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            return new Border
+            {
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 8, 10),
+                MinWidth = 116,
+                Background = bgControl,
+                BorderBrush = brush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Effect = Application.Current.TryFindResource("PanelShadow") as Effect,
+                Child = new DockPanel
+                {
+                    LastChildFill = true,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = caption,
+                            Foreground = textSecondary,
+                            FontSize = 11,
+                            FontWeight = FontWeights.SemiBold,
+                            Margin = new Thickness(0, 0, 10, 0),
+                            VerticalAlignment = VerticalAlignment.Center
+                        },
+                        valueBlock
+                    }
+                }
+            };
+        }
+
+        var warningBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x57));
+        var errorBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x70, 0x70));
+        var debugBrush = new SolidColorBrush(Color.FromRgb(0x9B, 0xB8, 0xFF));
+        var infoBrush = accentLight;
+        var metrics = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
+        TextBlock totalCount;
+        TextBlock errorCount;
+        TextBlock warningCount;
+        TextBlock infoCount;
+        TextBlock debugCount;
+        metrics.Children.Add(MetricCard("LINES", textPrimary, out totalCount));
+        metrics.Children.Add(MetricCard("ERRORS", errorBrush, out errorCount));
+        metrics.Children.Add(MetricCard("WARN", warningBrush, out warningCount));
+        metrics.Children.Add(MetricCard("INFO", infoBrush, out infoCount));
+        metrics.Children.Add(MetricCard("DEBUG", debugBrush, out debugCount));
+        DockPanel.SetDock(metrics, Dock.Top);
+        panel.Children.Add(metrics);
+
         var logBox = new RichTextBox
         {
             IsReadOnly = true,
@@ -3230,6 +3308,14 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             visibleLogText = ReadLogTail(logPath, 2000);
             if (string.IsNullOrWhiteSpace(visibleLogText))
                 visibleLogText = L("LogViewerEmpty");
+
+            string[] lines = visibleLogText.Replace("\r\n", "\n").Split('\n', StringSplitOptions.None);
+            totalCount.Text = lines.Length.ToString(CultureInfo.InvariantCulture);
+            errorCount.Text = lines.Count(line => line.Contains("error", StringComparison.OrdinalIgnoreCase) || line.Contains("fatal", StringComparison.OrdinalIgnoreCase) || line.Contains("[ERR", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
+            warningCount.Text = lines.Count(line => line.Contains("warn", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
+            infoCount.Text = lines.Count(line => line.Contains("info", StringComparison.OrdinalIgnoreCase) || line.Contains("[INF", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
+            debugCount.Text = lines.Count(line => line.Contains("debug", StringComparison.OrdinalIgnoreCase) || line.Contains("[DBG", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
+
             logBox.Document = BuildLogViewerDocument(visibleLogText, bgDeep, textPrimary, textSecondary, accentLight);
             logBox.ScrollToEnd();
             AppLogger.Info("[Help] About log viewer refreshed.");
@@ -3269,14 +3355,26 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             Foreground = textPrimary
         };
 
-        foreach (string line in text.Replace("\r\n", "\n").Split('\n'))
+        string[] lines = text.Replace("\r\n", "\n").Split('\n');
+        for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
         {
+            string line = lines[lineIndex];
             Brush foreground = ResolveLogLineBrush(line, textPrimary, textSecondary, accentLight, warningBrush, errorBrush, debugBrush);
             var paragraph = new Paragraph
             {
-                Margin = new Thickness(0, 0, 0, 2),
+                Margin = new Thickness(0, 0, 0, 1),
                 LineHeight = 16
             };
+            if (ReferenceEquals(foreground, errorBrush))
+                paragraph.Background = new SolidColorBrush(Color.FromArgb(0x28, 0xFF, 0x30, 0x50));
+            else if (ReferenceEquals(foreground, warningBrush))
+                paragraph.Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xC8, 0x57));
+
+            paragraph.Inlines.Add(new Run((lineIndex + 1).ToString("0000", CultureInfo.InvariantCulture) + "  ")
+            {
+                Foreground = textSecondary,
+                FontWeight = FontWeights.Light
+            });
 
             if (TrySplitLogPrefix(line, out string prefix, out string rest))
             {
@@ -3766,15 +3864,74 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 format.Type,
                 format.Extension,
                 format.DisplayName,
-                ModuleFormatCatalog.IsEmulatedChipFormat(format.Format)
-                    ? "Internal chip renderer"
-                    : format.Format == ModuleFormat.OpenMpt ? "libopenmpt" : "Native / libopenmpt",
-                format.DirtyNativePatchSupported
-                    ? "dirty native patch + conversion"
-                    : format.Format is ModuleFormat.SID or ModuleFormat.NSF
-                        ? "native keep + audio render + conversion"
-                        : "native keep + render/convert"))
+                ResolveFormatPlayback(format),
+                ResolveFormatEngine(format),
+                ResolveFormatExport(format),
+                ResolveFormatNotes(format)))
             .ToArray();
+
+    /// <summary>
+    /// Describes the player used for an About-window format row.
+    /// </summary>
+    private static string ResolveFormatPlayback(ModuleFormatInfo format) =>
+        format.Format switch
+        {
+            ModuleFormat.AmChip => "Native AMC",
+            ModuleFormat.SID => "Internal SID",
+            ModuleFormat.NSF => "Internal NSF",
+            ModuleFormat.OpenMpt => "libopenmpt",
+            _ => "Native / libopenmpt"
+        };
+
+    /// <summary>
+    /// Describes the import/export engine used for an About-window format row.
+    /// </summary>
+    private static string ResolveFormatEngine(ModuleFormatInfo format) =>
+        format.Format switch
+        {
+            ModuleFormat.AmChip => "amChipper.AmcPlayer",
+            ModuleFormat.SID => "amChipper.SidPlayer",
+            ModuleFormat.NSF => "amChipper.NsfPlayer",
+            ModuleFormat.OpenMpt => "OpenMPT bridge",
+            ModuleFormat.XM => "XM patcher",
+            ModuleFormat.MOD => "MOD patcher",
+            ModuleFormat.IT => "IT reader / renderer",
+            ModuleFormat.S3M => "S3M reader / renderer",
+            _ => "Format catalog"
+        };
+
+    /// <summary>
+    /// Describes export/edit behavior for an About-window format row.
+    /// </summary>
+    private static string ResolveFormatExport(ModuleFormatInfo format)
+    {
+        if (format.DirtyNativePatchSupported)
+            return "native patch + conversion";
+
+        return format.Format switch
+        {
+            ModuleFormat.SID or ModuleFormat.NSF => "keep source + render + trace",
+            ModuleFormat.OpenMpt => "render + convert",
+            _ => "native keep + render/convert"
+        };
+    }
+
+    /// <summary>
+    /// Adds concise user-facing support notes for a format row.
+    /// </summary>
+    private static string ResolveFormatNotes(ModuleFormatInfo format) =>
+        format.Format switch
+        {
+            ModuleFormat.AmChip => "Compressed native container with embedded source, normalized rows, 64-channel headroom, and amChipper-only metadata.",
+            ModuleFormat.XM => "Strongest editable round-trip path; preserves tracker rows, instruments, volume column, and effect bytes.",
+            ModuleFormat.MOD => "Editable native patch path for classic ProTracker-style rows and effects.",
+            ModuleFormat.IT => "Playback/import supported; exact native write-back is renderer/conversion focused.",
+            ModuleFormat.S3M => "Playback/import supported; exact native write-back is renderer/conversion focused.",
+            ModuleFormat.SID => "Chip state is reconstructed from SID register analysis; timing and pattern rows remain active-development territory.",
+            ModuleFormat.NSF => "NES APU state is traced into editable material where possible; some driver-specific behavior is reconstructed.",
+            ModuleFormat.OpenMpt => "Handled through libopenmpt for broad tracker-family playback and rendering.",
+            _ => "Supported through the catalog and routed to the best available native, libopenmpt, or conversion path."
+        };
 
     /// <summary>
     /// Executes the ShouldShowRuntimePlugin operation.
@@ -6661,7 +6818,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// <summary>
     /// Carries FormatSupportRow data.
     /// </summary>
-    private sealed record FormatSupportRow(string Type, string Extension, string DisplayName, string Playback, string Export);
+    private sealed record FormatSupportRow(string Type, string Extension, string DisplayName, string Playback, string Engine, string Export, string Notes);
 
     /// <summary>
     /// Carries one expandable changelog group parsed from CHANGELOG.md.

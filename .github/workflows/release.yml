@@ -69,12 +69,24 @@ jobs:
           $tag = "${{ env.AMCHIPPER_RELEASE_TAG }}"
           $zip = "${{ env.AMCHIPPER_RELEASE_ZIP }}"
           $notes = Get-Content .\RELEASE_NOTES.md -Raw
+          $repo = "${{ github.repository }}"
 
-          gh release view $tag --repo "${{ github.repository }}" *> $null
+          gh release view $tag --repo $repo *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $zip --repo "${{ github.repository }}" --clobber
-            gh release edit $tag --repo "${{ github.repository }}" --title "amChipper $tag" --notes "$notes"
+            gh release upload $tag $zip --repo $repo --clobber
+
+            # Normalize earlier failed runs that may have left a hidden draft or prerelease
+            # entry behind. The Releases page should show a normal public/private release.
+            $release = gh api "repos/$repo/releases/tags/$tag" | ConvertFrom-Json
+            $payload = @{
+              name = "amChipper $tag"
+              body = $notes
+              draft = $false
+              prerelease = $false
+              make_latest = "legacy"
+            } | ConvertTo-Json
+            $payload | gh api -X PATCH "repos/$repo/releases/$($release.id)" --input -
           }
           else {
-            gh release create $tag $zip --repo "${{ github.repository }}" --title "amChipper $tag" --notes "$notes" --verify-tag
+            gh release create $tag $zip --repo $repo --title "amChipper $tag" --notes "$notes" --verify-tag
           }
