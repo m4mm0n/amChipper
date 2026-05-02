@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package
+        required: true
+        default: v0.1.0.0-AMC20260502.6
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        shell: pwsh
+        run: |
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ inputs.tag }}" } else { "${{ github.ref_name }}" }
+          "AMCHIPPER_RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore .\amChipper.sln
+
+      - name: Build
+        run: dotnet build .\amChipper.sln -c Release -p:Platform=x64 --no-restore
+
+      - name: Test
+        run: dotnet test .\amChipper.sln -c Release -p:Platform=x64 --no-build
+
+      - name: Publish
+        run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\Ready2Release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $zip = "amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-win-x64.zip"
+          Compress-Archive -Path .\Ready2Release\* -DestinationPath $zip -Force
+          "AMCHIPPER_RELEASE_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-win-x64
+          path: ${{ env.AMCHIPPER_RELEASE_ZIP }}
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ env.AMCHIPPER_RELEASE_TAG }}"
+          $zip = "${{ env.AMCHIPPER_RELEASE_ZIP }}"
+          $notes = Get-Content .\RELEASE_NOTES.md -Raw
+
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip --repo "${{ github.repository }}" --clobber
+            gh release edit $tag --repo "${{ github.repository }}" --title "amChipper $tag" --notes "$notes" --latest
+          }
+          else {
+            gh release create $tag $zip --repo "${{ github.repository }}" --title "amChipper $tag" --notes "$notes" --latest --verify-tag
+          }
