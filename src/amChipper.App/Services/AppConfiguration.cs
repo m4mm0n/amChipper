@@ -33,6 +33,10 @@ public sealed class AppConfiguration
     /// </summary>
     public double MainLeftPanelWidth { get; set; } = 200;
     /// <summary>
+    /// User-defined order for the main editor/rack tabs.
+    /// </summary>
+    public string[] MainTabOrder { get; set; } = [];
+    /// <summary>
     /// Stores or exposes Language.
     /// </summary>
     public string Language { get; set; } = "English";

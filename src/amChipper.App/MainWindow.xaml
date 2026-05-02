@@ -229,9 +229,13 @@
       <TabControl Grid.Column="2" x:Name="MainTabControl"
                   Background="{DynamicResource FlStudioPanel}"
                   BorderThickness="0"
-                  Padding="6,4,6,0">
+                  Padding="6,4,6,0"
+                  AllowDrop="True"
+                  PreviewMouseLeftButtonDown="MainTabControl_PreviewMouseLeftButtonDown"
+                  PreviewMouseMove="MainTabControl_PreviewMouseMove"
+                  Drop="MainTabControl_Drop">
 
-        <TabItem x:Name="ProjectHubTab" Header="{Binding [TabProjectHub], StringFormat=⌂ {0}}">
+        <TabItem x:Name="ProjectHubTab" Header="{Binding [TabProjectHub], StringFormat=🏠 {0}}">
           <ScrollViewer Background="{DynamicResource BgDeep}"
                         VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled">
@@ -428,19 +432,19 @@
           </ScrollViewer>
         </TabItem>
 
-        <TabItem x:Name="SongEditorTab" Header="{Binding [TabSongEditor], StringFormat=▦ {0}}">
+        <TabItem x:Name="SongEditorTab" Header="{Binding [TabSongEditor], StringFormat=🎼 {0}}">
           <song:SongEditorControl DataContext="{Binding SongEditor}"/>
         </TabItem>
 
-        <TabItem x:Name="ChannelRackTab" Header="{Binding [TabChannelRack], StringFormat=☰ {0}}">
+        <TabItem x:Name="ChannelRackTab" Header="{Binding [TabChannelRack], StringFormat=🎛 {0}}">
           <channelRack:ChannelRackControl DataContext="{Binding ChannelRack}"/>
         </TabItem>
 
-        <TabItem x:Name="AutomationTab" Header="{Binding [TabAutomation], StringFormat=↯ {0}}">
+        <TabItem x:Name="AutomationTab" Header="{Binding [TabAutomation], StringFormat=〽 {0}}">
           <automation:AutomationEditorControl DataContext="{Binding Automation}"/>
         </TabItem>
 
-        <TabItem x:Name="MixerTab" Header="{Binding [TabMixer], StringFormat=◧ {0}}">
+        <TabItem x:Name="MixerTab" Header="{Binding [TabMixer], StringFormat=🎚 {0}}">
           <Grid Background="{DynamicResource BgDeep}">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
@@ -636,7 +640,7 @@
           </Grid>
         </TabItem>
 
-        <TabItem x:Name="AnalyzerTab" Header="{Binding [TabAnalyzer], StringFormat=▥ {0}}">
+        <TabItem x:Name="AnalyzerTab" Header="{Binding [TabAnalyzer], StringFormat=📊 {0}}">
           <Grid Background="{DynamicResource BgDeep}" Margin="14">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
@@ -761,11 +765,11 @@
           </Grid>
         </TabItem>
 
-        <TabItem x:Name="PianoRollTab" Header="{Binding [TabPianoRoll], StringFormat=▤ {0}}">
+        <TabItem x:Name="PianoRollTab" Header="{Binding [TabPianoRoll], StringFormat=🎹 {0}}">
           <piano:PianoRollControl DataContext="{Binding PianoRoll}"/>
         </TabItem>
 
-        <TabItem x:Name="PatternEditorTab" Header="{Binding [TabPatternEditor], StringFormat=# {0}}">
+        <TabItem x:Name="PatternEditorTab" Header="{Binding [TabPatternEditor], StringFormat=🧮 {0}}">
           <pattern:PatternEditorControl DataContext="{Binding PatternEditor}"/>
         </TabItem>
 

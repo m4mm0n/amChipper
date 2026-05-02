@@ -128,6 +128,11 @@ public sealed class MainViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// User-defined order for the main editor/rack tabs.
+    /// </summary>
+    public string[] MainTabOrder { get; set; } = [];
+
+    /// <summary>
     /// Stores or exposes _selectedTheme.
     /// </summary>
     private string _selectedTheme = "FL Grape";
@@ -2394,6 +2399,7 @@ public sealed class MainViewModel : BaseViewModel
         WorkspaceDensity = WorkspaceDensity,
         ToolbarButtonSize = ToolbarButtonSize,
         MainLeftPanelWidth = MainLeftPanelWidth,
+        MainTabOrder = MainTabOrder,
         Language = SelectedLanguage,
         ShowTipsOnStartup = ShowTipsOnStartup,
         LastTipIndex = _lastTipIndex,
@@ -2439,6 +2445,7 @@ public sealed class MainViewModel : BaseViewModel
         WorkspaceDensity = NormalizeOption(configuration.WorkspaceDensity, WorkspaceDensityOptions, "Balanced");
         ToolbarButtonSize = NormalizeOption(configuration.ToolbarButtonSize, ToolbarButtonSizeOptions, "Balanced");
         MainLeftPanelWidth = Math.Clamp(configuration.MainLeftPanelWidth <= 0 ? 200 : configuration.MainLeftPanelWidth, 140, 320);
+        MainTabOrder = configuration.MainTabOrder ?? [];
         SelectedLanguage = AppHelpContent.NormalizeLanguage(configuration.Language);
         ShowTipsOnStartup = configuration.ShowTipsOnStartup;
         _lastTipIndex = Math.Max(0, configuration.LastTipIndex);
@@ -2798,9 +2805,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private void ShowAboutWindow()
     {
-        string version = typeof(MainViewModel).Assembly
+        string version = NormalizeDisplayVersion(typeof(MainViewModel).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion ?? "v0.1.0.0";
+            .InformationalVersion ?? "v0.1.0.0");
 
         var logo = new Image
         {
@@ -2890,10 +2897,12 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         logoPanel.Children.Add(new TextBlock
         {
             Text = version,
-            FontSize = 14,
+            FontSize = 13,
             FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
             Foreground = accentLight,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 10, 0, 0)
         });
         logoPanel.Children.Add(new TextBlock
@@ -3168,6 +3177,19 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     }
 
     /// <summary>
+    /// Keeps About-window version text readable by hiding build metadata hashes appended by the SDK.
+    /// </summary>
+    private static string NormalizeDisplayVersion(string version)
+    {
+        string clean = string.IsNullOrWhiteSpace(version) ? "v0.1.0.0" : version.Trim();
+        int metadataIndex = clean.IndexOf('+', StringComparison.Ordinal);
+        if (metadataIndex > 0)
+            clean = clean[..metadataIndex];
+
+        return clean.StartsWith('v') ? clean : $"v{clean}";
+    }
+
+    /// <summary>
     /// Builds the About window log-viewer tab with refresh, copy, and log-folder actions.
     /// </summary>
     private DockPanel BuildAboutLogViewer(
@@ -3223,6 +3245,26 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         DockPanel.SetDock(buttons, Dock.Top);
         panel.Children.Add(buttons);
 
+        var filterPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+        filterPanel.Children.Add(new TextBlock
+        {
+            Text = L("LogFilter"),
+            Foreground = textSecondary,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 10, 0)
+        });
+        var filterBox = new ComboBox
+        {
+            Width = 190,
+            ItemsSource = new[] { L("LogFilterAll"), L("LogFilterCritical"), L("LogFilterErrors"), L("LogFilterWarnings"), L("LogFilterInfo"), L("LogFilterDebug") },
+            SelectedIndex = 0,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        filterPanel.Children.Add(filterBox);
+        DockPanel.SetDock(filterPanel, Dock.Top);
+        panel.Children.Add(filterPanel);
+
         Border MetricCard(string caption, Brush brush, out TextBlock valueBlock)
         {
             valueBlock = new TextBlock
@@ -3270,11 +3312,13 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         var infoBrush = accentLight;
         var metrics = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
         TextBlock totalCount;
+        TextBlock criticalCount;
         TextBlock errorCount;
         TextBlock warningCount;
         TextBlock infoCount;
         TextBlock debugCount;
         metrics.Children.Add(MetricCard("LINES", textPrimary, out totalCount));
+        metrics.Children.Add(MetricCard("CRITICAL", errorBrush, out criticalCount));
         metrics.Children.Add(MetricCard("ERRORS", errorBrush, out errorCount));
         metrics.Children.Add(MetricCard("WARN", warningBrush, out warningCount));
         metrics.Children.Add(MetricCard("INFO", infoBrush, out infoCount));
@@ -3297,7 +3341,37 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             Document = new FlowDocument { PagePadding = new Thickness(0), Background = bgDeep }
         };
         panel.Children.Add(logBox);
+        string rawLogText = string.Empty;
         string visibleLogText = string.Empty;
+
+        void RenderLog()
+        {
+            string[] rawLines = rawLogText.Replace("\r\n", "\n").Split('\n', StringSplitOptions.None);
+            totalCount.Text = rawLines.Length.ToString(CultureInfo.InvariantCulture);
+            criticalCount.Text = rawLines.Count(IsCriticalLogLine).ToString(CultureInfo.InvariantCulture);
+            errorCount.Text = rawLines.Count(IsErrorLogLine).ToString(CultureInfo.InvariantCulture);
+            warningCount.Text = rawLines.Count(IsWarningLogLine).ToString(CultureInfo.InvariantCulture);
+            infoCount.Text = rawLines.Count(IsInfoLogLine).ToString(CultureInfo.InvariantCulture);
+            debugCount.Text = rawLines.Count(IsDebugLogLine).ToString(CultureInfo.InvariantCulture);
+
+            string filter = filterBox.SelectedIndex switch
+            {
+                1 => "critical",
+                2 => "error",
+                3 => "warning",
+                4 => "info",
+                5 => "debug",
+                _ => "all"
+            };
+
+            var filteredLines = rawLines.Where(line => LogLineMatchesFilter(line, filter)).ToArray();
+            visibleLogText = filteredLines.Length == 0
+                ? L("LogViewerEmpty")
+                : string.Join(Environment.NewLine, filteredLines);
+
+            logBox.Document = BuildLogViewerDocument(visibleLogText, bgDeep, textPrimary, textSecondary, accentLight);
+            logBox.ScrollToEnd();
+        }
 
         void RefreshLog()
         {
@@ -3305,22 +3379,15 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             pathText.Text = string.IsNullOrWhiteSpace(logPath)
                 ? L("NoLogFile")
                 : $"{L("LogFile")}: {logPath}";
-            visibleLogText = ReadLogTail(logPath, 2000);
-            if (string.IsNullOrWhiteSpace(visibleLogText))
-                visibleLogText = L("LogViewerEmpty");
+            rawLogText = ReadLogTail(logPath, 2000);
+            if (string.IsNullOrWhiteSpace(rawLogText))
+                rawLogText = L("LogViewerEmpty");
 
-            string[] lines = visibleLogText.Replace("\r\n", "\n").Split('\n', StringSplitOptions.None);
-            totalCount.Text = lines.Length.ToString(CultureInfo.InvariantCulture);
-            errorCount.Text = lines.Count(line => line.Contains("error", StringComparison.OrdinalIgnoreCase) || line.Contains("fatal", StringComparison.OrdinalIgnoreCase) || line.Contains("[ERR", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
-            warningCount.Text = lines.Count(line => line.Contains("warn", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
-            infoCount.Text = lines.Count(line => line.Contains("info", StringComparison.OrdinalIgnoreCase) || line.Contains("[INF", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
-            debugCount.Text = lines.Count(line => line.Contains("debug", StringComparison.OrdinalIgnoreCase) || line.Contains("[DBG", StringComparison.OrdinalIgnoreCase)).ToString(CultureInfo.InvariantCulture);
-
-            logBox.Document = BuildLogViewerDocument(visibleLogText, bgDeep, textPrimary, textSecondary, accentLight);
-            logBox.ScrollToEnd();
+            RenderLog();
             AppLogger.Info("[Help] About log viewer refreshed.");
         }
 
+        filterBox.SelectionChanged += (_, _) => RenderLog();
         refreshButton.Click += (_, _) => RefreshLog();
         copyButton.Click += (_, _) =>
         {
@@ -3407,6 +3474,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         if (line.Contains("error", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("fatal", StringComparison.OrdinalIgnoreCase) ||
+            line.Contains("critical", StringComparison.OrdinalIgnoreCase) ||
             line.Contains("[ERR", StringComparison.OrdinalIgnoreCase))
             return errorBrush;
         if (line.Contains("warn", StringComparison.OrdinalIgnoreCase))
@@ -3419,6 +3487,59 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             return accentLight;
         return string.IsNullOrWhiteSpace(line) ? textSecondary : textPrimary;
     }
+
+    /// <summary>
+    /// Returns true when a log line is a fatal/critical event.
+    /// </summary>
+    private static bool IsCriticalLogLine(string line) =>
+        line.Contains("fatal", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("critical", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[FTL", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns true when a log line is an error or worse.
+    /// </summary>
+    private static bool IsErrorLogLine(string line) =>
+        IsCriticalLogLine(line) ||
+        line.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[ERR", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns true when a log line is a warning.
+    /// </summary>
+    private static bool IsWarningLogLine(string line) =>
+        line.Contains("warn", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[WRN", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns true when a log line is informational.
+    /// </summary>
+    private static bool IsInfoLogLine(string line) =>
+        line.Contains("info", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[INF", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns true when a log line is debug/trace output.
+    /// </summary>
+    private static bool IsDebugLogLine(string line) =>
+        line.Contains("debug", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("trace", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[DBG", StringComparison.OrdinalIgnoreCase) ||
+        line.Contains("[TRC", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Applies the selected About-log severity filter.
+    /// </summary>
+    private static bool LogLineMatchesFilter(string line, string filter) =>
+        filter switch
+        {
+            "critical" => IsCriticalLogLine(line),
+            "error" => IsErrorLogLine(line),
+            "warning" => IsWarningLogLine(line),
+            "info" => IsInfoLogLine(line),
+            "debug" => IsDebugLogLine(line),
+            _ => true
+        };
 
     private static bool TrySplitLogPrefix(string line, out string prefix, out string rest)
     {

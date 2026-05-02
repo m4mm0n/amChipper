@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using amChipper.App.Services;
@@ -44,6 +46,8 @@ public partial class MainWindow : Window
     /// Stores or exposes _mixerHistoryOpen.
     /// </summary>
     private bool _mixerHistoryOpen;
+    private Point _tabDragStartPoint;
+    private TabItem? _draggedTabItem;
 
     public MainWindow()
     {
@@ -76,6 +80,7 @@ public partial class MainWindow : Window
     private void ApplyPersistedLayout()
     {
         LeftPanelColumn.Width = new GridLength(_vm.MainLeftPanelWidth, GridUnitType.Pixel);
+        ApplyPersistedTabOrder();
     }
 
     /// <summary>
@@ -84,6 +89,41 @@ public partial class MainWindow : Window
     private void CapturePersistedLayout()
     {
         _vm.MainLeftPanelWidth = LeftPanelColumn.ActualWidth;
+        _vm.MainTabOrder = MainTabControl.Items.OfType<TabItem>()
+            .Select(item => item.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Reorders the main rack/editor tabs from the saved user configuration.
+    /// </summary>
+    private void ApplyPersistedTabOrder()
+    {
+        if (_vm.MainTabOrder.Length == 0)
+            return;
+
+        var tabs = MainTabControl.Items.OfType<TabItem>().ToDictionary(tab => tab.Name, StringComparer.OrdinalIgnoreCase);
+        var ordered = new List<TabItem>();
+        foreach (string name in _vm.MainTabOrder)
+        {
+            if (tabs.TryGetValue(name, out var tab) && !ordered.Contains(tab))
+                ordered.Add(tab);
+        }
+
+        foreach (var tab in MainTabControl.Items.OfType<TabItem>())
+        {
+            if (!ordered.Contains(tab))
+                ordered.Add(tab);
+        }
+
+        object? selected = MainTabControl.SelectedItem;
+        MainTabControl.Items.Clear();
+        foreach (var tab in ordered)
+            MainTabControl.Items.Add(tab);
+
+        if (selected is TabItem selectedTab && MainTabControl.Items.Contains(selectedTab))
+            MainTabControl.SelectedItem = selectedTab;
     }
 
     /// <summary>
@@ -175,6 +215,77 @@ public partial class MainWindow : Window
     /// </summary>
     private void View_PatternEditor(object sender, RoutedEventArgs e) =>
         MainTabControl.SelectedItem = PatternEditorTab;
+
+    /// <summary>
+    /// Starts tracking a possible drag-reorder operation on the main tab strip.
+    /// </summary>
+    private void MainTabControl_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _tabDragStartPoint = e.GetPosition(MainTabControl);
+        _draggedTabItem = FindAncestor<TabItem>(e.OriginalSource as DependencyObject);
+    }
+
+    /// <summary>
+    /// Initiates drag/drop once the pointer moves far enough on a tab header.
+    /// </summary>
+    private void MainTabControl_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _draggedTabItem is null)
+            return;
+
+        Point current = e.GetPosition(MainTabControl);
+        if (Math.Abs(current.X - _tabDragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(current.Y - _tabDragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+
+        DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
+        _draggedTabItem = null;
+    }
+
+    /// <summary>
+    /// Moves a dragged main tab before the drop target and persists the new order.
+    /// </summary>
+    private void MainTabControl_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TabItem)) is not TabItem source)
+            return;
+
+        var target = FindAncestor<TabItem>(e.OriginalSource as DependencyObject);
+        if (target is null || ReferenceEquals(source, target))
+            return;
+
+        int sourceIndex = MainTabControl.Items.IndexOf(source);
+        int targetIndex = MainTabControl.Items.IndexOf(target);
+        if (sourceIndex < 0 || targetIndex < 0)
+            return;
+
+        MainTabControl.Items.Remove(source);
+        if (sourceIndex < targetIndex)
+            targetIndex--;
+        MainTabControl.Items.Insert(targetIndex, source);
+        MainTabControl.SelectedItem = source;
+        CapturePersistedLayout();
+        _vm.SaveConfigurationOnExit();
+    }
+
+    /// <summary>
+    /// Walks up the WPF visual tree to find an ancestor of the requested type.
+    /// </summary>
+    private static T? FindAncestor<T>(DependencyObject? current)
+        where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T typed)
+                return typed;
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Executes the View_Analyzer operation.
