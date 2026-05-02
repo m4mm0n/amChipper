@@ -44,7 +44,7 @@ The app intentionally moves dependency DLLs into `libs/` during build/publish an
 - `src/amChipper.SidPlayer` - internal SID support.
 - `src/amChipper.NsfPlayer` - internal NSF support.
 - `src/amChipper.LanguageTool` - translation editor tooling.
-- `src/QuickLog` - bundled logging library used by the app.
+- `src/QuickLog` - Git submodule for the QuickLog logging library used by the app.
 - `tests/amChipper.Core.Tests` - core regression tests.
 - `docs/` - GitHub/wiki-ready documentation.
 

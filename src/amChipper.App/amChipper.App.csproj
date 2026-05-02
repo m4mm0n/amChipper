@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <ProjectReference Include="..\QuickLog\QuickLog.csproj">
+    <ProjectReference Include="..\QuickLog\QuickLog\QuickLog.csproj">
       <Properties>Platform=AnyCPU</Properties>
     </ProjectReference>
   </ItemGroup>

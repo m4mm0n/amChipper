@@ -10,7 +10,7 @@
 - `amChipper.NsfPlayer` - internal NSF parser/player/emulation support.
 - `amChipper.Console` - headless diagnostics/test harness.
 - `amChipper.LanguageTool` - translation authoring helper.
-- `QuickLog` - bundled logging infrastructure.
+- `QuickLog` - logging infrastructure, linked as a Git submodule from `https://github.com/m4mm0n/QuickLog`.
 
 ## Design boundaries
 

@@ -1,0 +1,3 @@
+[submodule "src/QuickLog"]
+	path = src/QuickLog
+	url = https://github.com/m4mm0n/QuickLog.git
