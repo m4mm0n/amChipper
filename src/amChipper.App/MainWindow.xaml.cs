@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private bool _mixerHistoryOpen;
     private Point _tabDragStartPoint;
     private TabItem? _draggedTabItem;
+    private double _draggedTabOriginalOpacity = 1.0;
 
     public MainWindow()
     {
@@ -222,7 +223,9 @@ public partial class MainWindow : Window
     private void MainTabControl_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _tabDragStartPoint = e.GetPosition(MainTabControl);
-        _draggedTabItem = FindAncestor<TabItem>(e.OriginalSource as DependencyObject);
+        _draggedTabItem = _tabDragStartPoint.Y <= 44
+            ? FindAncestor<TabItem>(e.OriginalSource as DependencyObject)
+            : null;
     }
 
     /// <summary>
@@ -238,34 +241,79 @@ public partial class MainWindow : Window
             Math.Abs(current.Y - _tabDragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
             return;
 
-        DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
-        _draggedTabItem = null;
+        var source = _draggedTabItem;
+        _draggedTabOriginalOpacity = source.Opacity;
+        source.Opacity = 0.55;
+        Mouse.OverrideCursor = Cursors.SizeWE;
+        try
+        {
+            DragDrop.DoDragDrop(source, source, DragDropEffects.Move);
+        }
+        finally
+        {
+            source.Opacity = _draggedTabOriginalOpacity;
+            Mouse.OverrideCursor = null;
+            _draggedTabItem = null;
+        }
     }
 
     /// <summary>
-    /// Moves a dragged main tab before the drop target and persists the new order.
+    /// Reorders a dragged main tab while the user moves across the tab strip.
+    /// </summary>
+    private void MainTabControl_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TabItem)) is not TabItem)
+            return;
+
+        MoveDraggedMainTab(e);
+        e.Effects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Persists the new tab order after drag/drop finishes.
     /// </summary>
     private void MainTabControl_Drop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(typeof(TabItem)) is not TabItem source)
             return;
 
+        MoveDraggedMainTab(e);
+        MainTabControl.SelectedItem = source;
+        CapturePersistedLayout();
+        _vm.SaveConfigurationOnExit();
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Moves a dragged main tab before or after the target tab based on pointer position.
+    /// </summary>
+    private bool MoveDraggedMainTab(DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(TabItem)) is not TabItem source)
+            return false;
+
         var target = FindAncestor<TabItem>(e.OriginalSource as DependencyObject);
         if (target is null || ReferenceEquals(source, target))
-            return;
+            return false;
 
         int sourceIndex = MainTabControl.Items.IndexOf(source);
         int targetIndex = MainTabControl.Items.IndexOf(target);
         if (sourceIndex < 0 || targetIndex < 0)
-            return;
+            return false;
+
+        bool insertAfter = e.GetPosition(target).X > target.ActualWidth / 2.0;
 
         MainTabControl.Items.Remove(source);
         if (sourceIndex < targetIndex)
             targetIndex--;
+        if (insertAfter)
+            targetIndex++;
+
+        targetIndex = Math.Clamp(targetIndex, 0, MainTabControl.Items.Count);
         MainTabControl.Items.Insert(targetIndex, source);
         MainTabControl.SelectedItem = source;
-        CapturePersistedLayout();
-        _vm.SaveConfigurationOnExit();
+        return true;
     }
 
     /// <summary>

@@ -1889,10 +1889,15 @@ public static class AppHelpContent
         foreach (string language in BuiltInLanguages)
         {
             string path = Path.Combine(directory, $"{SafeLanguageFileName(language)}.json");
-            if (File.Exists(path) && !overwrite)
-                continue;
-
             var pack = new LanguagePack(language, language, GetBuiltInDictionary(language));
+            if (File.Exists(path) && !overwrite)
+            {
+                if (MergeMissingLanguageEntries(path, pack))
+                    continue;
+
+                continue;
+            }
+
             File.WriteAllText(path, JsonSerializer.Serialize(pack, JsonOptions));
         }
 
@@ -1946,9 +1951,11 @@ public static class AppHelpContent
                     continue;
                 }
 
-                int missing = expected.Count(key => !pack.Entries.ContainsKey(key));
+                var missingKeys = expected.Where(key => !pack.Entries.ContainsKey(key)).ToArray();
+                int missing = missingKeys.Length;
                 int extra = pack.Entries.Keys.Count(key => !English.ContainsKey(key));
-                lines.Add($"{(missing == 0 ? "OK" : "WARN")} {Path.GetFileName(file)} language={pack.Language} entries={pack.Entries.Count} missing={missing} extra={extra}");
+                string missingText = missing == 0 ? string.Empty : $" missingKeys={string.Join(",", missingKeys.Take(12))}";
+                lines.Add($"{(missing == 0 ? "OK" : "WARN")} {Path.GetFileName(file)} language={pack.Language} entries={pack.Entries.Count} missing={missing} extra={extra}{missingText}");
             }
             catch (Exception ex)
             {
@@ -1957,6 +1964,41 @@ public static class AppHelpContent
         }
 
         return lines.Count == 0 ? ["No language JSON files found."] : lines;
+    }
+
+    private static bool MergeMissingLanguageEntries(string path, LanguagePack builtInPack)
+    {
+        try
+        {
+            var existing = JsonSerializer.Deserialize<LanguagePack>(File.ReadAllText(path), JsonOptions);
+            if (existing is null)
+                return false;
+
+            bool changed = false;
+            var entries = new Dictionary<string, string>(existing.Entries, StringComparer.Ordinal);
+            foreach (var (key, value) in builtInPack.Entries)
+            {
+                if (entries.ContainsKey(key))
+                    continue;
+
+                entries[key] = value;
+                changed = true;
+            }
+
+            if (!changed)
+                return true;
+
+            var merged = new LanguagePack(
+                string.IsNullOrWhiteSpace(existing.Language) ? builtInPack.Language : existing.Language,
+                string.IsNullOrWhiteSpace(existing.NativeName) ? builtInPack.NativeName : existing.NativeName,
+                entries);
+            File.WriteAllText(path, JsonSerializer.Serialize(merged, JsonOptions));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string LanguageDirectory => Path.Combine(AppContext.BaseDirectory, "lang");

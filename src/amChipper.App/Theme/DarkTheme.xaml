@@ -769,7 +769,7 @@
     <Setter Property="Background"      Value="{DynamicResource BgControl}"/>
     <Setter Property="Foreground"      Value="{DynamicResource TextSecondary}"/>
     <Setter Property="BorderBrush"     Value="{DynamicResource Border}"/>
-    <Setter Property="Padding"         Value="15,7"/>
+    <Setter Property="Padding"         Value="10,6"/>
     <Setter Property="FontWeight"      Value="SemiBold"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -782,7 +782,29 @@
               <Border x:Name="TabShine" Background="{DynamicResource ButtonShine}" CornerRadius="4,4,0,0" Opacity="0.28"/>
               <Border x:Name="AccentLine" Height="3" VerticalAlignment="Bottom" CornerRadius="2"
                       Background="{DynamicResource AccentLight}" Opacity="0"/>
-              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+              <StackPanel Orientation="Horizontal"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center">
+                <Border x:Name="IconTile"
+                        Width="22"
+                        Height="22"
+                        CornerRadius="5"
+                        Background="{DynamicResource FlStudioStrip}"
+                        BorderBrush="{DynamicResource Border}"
+                        BorderThickness="1">
+                  <TextBlock Text="{TemplateBinding Tag}"
+                             FontFamily="Segoe UI Symbol"
+                             FontSize="13"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource AccentLight}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"/>
+                </Border>
+                <ContentPresenter ContentSource="Header"
+                                  Margin="7,0,2,0"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+              </StackPanel>
             </Grid>
           </Border>
           <ControlTemplate.Triggers>
@@ -792,10 +814,16 @@
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}"/>
               <Setter TargetName="TabShine" Property="Opacity" Value="0.22"/>
               <Setter TargetName="AccentLine" Property="Opacity" Value="0.88"/>
+              <Setter TargetName="IconTile" Property="Background" Value="{DynamicResource BgHover}"/>
+              <Setter TargetName="IconTile" Property="BorderBrush" Value="{DynamicResource AccentLight}"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Root" Property="Background" Value="{DynamicResource BgHover}"/>
               <Setter TargetName="TabShine" Property="Opacity" Value="0.18"/>
+              <Setter TargetName="IconTile" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+            </Trigger>
+            <Trigger Property="Tag" Value="{x:Null}">
+              <Setter TargetName="IconTile" Property="Visibility" Value="Collapsed"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
