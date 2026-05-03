@@ -95,7 +95,12 @@ public static class ChipTuneFile
             if (data.Length >= 5 && Encoding.ASCII.GetString(data, 0, 5) == "NESM\x1A")
                 return ReadNsfMetadata(data, path);
             if (magic == "NSFE")
-                return new ChipTuneMetadata(ModuleFormat.NSF, "NSFE", Path.GetFileNameWithoutExtension(path), string.Empty, "Nintendo Sound Format Extended", 1, 1);
+            {
+                byte[] nsf = NormalizeNsfData(data);
+                return ReferenceEquals(nsf, data)
+                    ? new ChipTuneMetadata(ModuleFormat.NSF, "NSFE", Path.GetFileNameWithoutExtension(path), string.Empty, "Nintendo Sound Format Extended; DATA/INFO chunks were not usable.", 1, 1)
+                    : ReadNsfMetadata(nsf, path) with { Type = "NSFE", Comment = "Nintendo Sound Format Extended; converted from NSFE chunks for playback/rendering." };
+            }
         }
 
         var extension = ModuleFormatCatalog.NormalizeExtension(Path.GetExtension(path));
@@ -105,6 +110,78 @@ public static class ChipTuneFile
             : ModuleFormat.SID;
         string type = format == ModuleFormat.NSF ? "NSF" : "SID";
         return new ChipTuneMetadata(format, type, Path.GetFileNameWithoutExtension(path), string.Empty, "Unrecognised header; kept as native chip file.", 1, 1);
+    }
+
+    /// <summary>
+    /// Converts NSFE chunks into an NSF-compatible byte stream for the internal renderer.
+    /// </summary>
+    public static byte[] NormalizeNsfData(byte[] data)
+    {
+        if (data.Length < 4 || Encoding.ASCII.GetString(data, 0, 4) != "NSFE")
+            return data;
+
+        return TryBuildNsfFromNsfe(data) ?? data;
+    }
+
+    private static byte[]? TryBuildNsfFromNsfe(byte[] data)
+    {
+        byte[]? info = null;
+        byte[]? program = null;
+        byte[] banks = new byte[8];
+
+        int offset = 4;
+        while (offset + 8 <= data.Length)
+        {
+            int length = ReadLittleEndianDword(data, offset);
+            string id = Encoding.ASCII.GetString(data, offset + 4, 4);
+            offset += 8;
+            if (length < 0 || offset + length > data.Length)
+                return null;
+
+            byte[] chunk = data[offset..(offset + length)];
+            offset += length;
+            if (id == "INFO")
+                info = chunk;
+            else if (id == "DATA")
+                program = chunk;
+            else if (id == "BANK")
+                Array.Copy(chunk, banks, Math.Min(chunk.Length, banks.Length));
+            else if (id == "NEND")
+                break;
+        }
+
+        if (info is null || program is null || info.Length < 8 || program.Length == 0)
+            return null;
+
+        ushort load = (ushort)ReadLittleEndianWord(info, 0);
+        ushort init = (ushort)ReadLittleEndianWord(info, 2);
+        ushort play = (ushort)ReadLittleEndianWord(info, 4);
+        if (load < 0x6000 || init == 0 || play == 0)
+            return null;
+
+        byte region = info.Length > 6 ? info[6] : (byte)0;
+        byte expansion = info.Length > 7 ? info[7] : (byte)0;
+        byte songs = info.Length > 8 ? (byte)Math.Max((int)info[8], 1) : (byte)1;
+        byte startSong = info.Length > 9 ? (byte)Math.Clamp(info[9] + 1, 1, Math.Max((int)songs, 1)) : (byte)1;
+
+        byte[] nsf = new byte[0x80 + program.Length];
+        Encoding.ASCII.GetBytes("NESM\x1A").CopyTo(nsf, 0);
+        nsf[0x05] = 1;
+        nsf[0x06] = songs;
+        nsf[0x07] = startSong;
+        WriteLittleEndianWord(nsf, 0x08, load);
+        WriteLittleEndianWord(nsf, 0x0A, init);
+        WriteLittleEndianWord(nsf, 0x0C, play);
+        WriteFixedAscii(nsf, 0x0E, "NSFE import");
+        WriteFixedAscii(nsf, 0x2E, "NSFE");
+        WriteFixedAscii(nsf, 0x4E, "Converted by amChipper");
+        WriteLittleEndianWord(nsf, 0x6E, 16639);
+        Array.Copy(banks, 0, nsf, 0x70, banks.Length);
+        WriteLittleEndianWord(nsf, 0x78, 20000);
+        nsf[0x7A] = region;
+        nsf[0x7B] = expansion;
+        Array.Copy(program, 0, nsf, 0x80, program.Length);
+        return nsf;
     }
 
     /// <summary>
@@ -924,6 +1001,32 @@ public static class ChipTuneFile
         if (offset + 1 >= data.Length)
             return 0;
         return data[offset] | (data[offset + 1] << 8);
+    }
+
+    private static int ReadLittleEndianDword(byte[] data, int offset)
+    {
+        if (offset + 3 >= data.Length)
+            return -1;
+        return data[offset] |
+               (data[offset + 1] << 8) |
+               (data[offset + 2] << 16) |
+               (data[offset + 3] << 24);
+    }
+
+    private static void WriteLittleEndianWord(byte[] data, int offset, int value)
+    {
+        if (offset + 1 >= data.Length)
+            return;
+        data[offset] = (byte)(value & 0xFF);
+        data[offset + 1] = (byte)((value >> 8) & 0xFF);
+    }
+
+    private static void WriteFixedAscii(byte[] data, int offset, string value)
+    {
+        if (offset >= data.Length)
+            return;
+        byte[] bytes = Encoding.ASCII.GetBytes(value);
+        Array.Copy(bytes, 0, data, offset, Math.Min(bytes.Length, Math.Min(32, data.Length - offset)));
     }
 
     /// <summary>

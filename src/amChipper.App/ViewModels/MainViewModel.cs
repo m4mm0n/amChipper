@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using amChipper.App.Commands;
 using amChipper.App.Services;
 using amChipper.App.Views;
@@ -161,6 +162,14 @@ public sealed class MainViewModel : BaseViewModel
     /// User-configured browser search folders displayed in Settings.
     /// </summary>
     public ObservableCollection<string> BrowserSearchFolders { get; } = new(GetDefaultChiptuneSearchFolders());
+    public ObservableCollection<ChiptuneLibraryEntry> ChiptuneLibraryEntries { get; } = [];
+
+    private readonly DispatcherTimer _projectAutosaveTimer = new();
+    private string _librarySearchText = string.Empty;
+    private string? _selectedBrowserSearchFolder;
+    private ChiptuneLibraryEntry? _selectedChiptuneLibraryEntry;
+    private string _chiptuneLibraryStatus = "Library not scanned.";
+    private string _lastProjectPath = string.Empty;
 
     private static string[] GetDefaultChiptuneSearchFolders() =>
     [
@@ -188,6 +197,34 @@ public sealed class MainViewModel : BaseViewModel
         string normalized = folder.Trim().TrimEnd('\\', '/');
         return normalized.Equals(@"C:\VSTs", StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(@"\Common Files\VST3", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public string LibrarySearchText
+    {
+        get => _librarySearchText;
+        set
+        {
+            if (SetField(ref _librarySearchText, value ?? string.Empty))
+                RefreshChiptuneLibrary();
+        }
+    }
+
+    public string? SelectedBrowserSearchFolder
+    {
+        get => _selectedBrowserSearchFolder;
+        set => SetField(ref _selectedBrowserSearchFolder, value);
+    }
+
+    public ChiptuneLibraryEntry? SelectedChiptuneLibraryEntry
+    {
+        get => _selectedChiptuneLibraryEntry;
+        set => SetField(ref _selectedChiptuneLibraryEntry, value);
+    }
+
+    public string ChiptuneLibraryStatus
+    {
+        get => _chiptuneLibraryStatus;
+        private set => SetField(ref _chiptuneLibraryStatus, value);
     }
 
     /// <summary>
@@ -555,7 +592,11 @@ public sealed class MainViewModel : BaseViewModel
     public string FileAutosaveMode
     {
         get => _fileAutosaveMode;
-        set => SetField(ref _fileAutosaveMode, NormalizeOption(value, AutosaveModeOptions, "Occasionally (every 10 minutes)"));
+        set
+        {
+            if (SetField(ref _fileAutosaveMode, NormalizeOption(value, AutosaveModeOptions, "Occasionally (every 10 minutes)")))
+                ConfigureProjectAutosaveTimer();
+        }
     }
 
     private string _fileBackupLocationMode = "Project data folder when available";
@@ -1768,6 +1809,12 @@ public sealed class MainViewModel : BaseViewModel
     /// Stores or exposes RefreshAudioDevicesCommand.
     /// </summary>
     public ICommand RefreshAudioDevicesCommand { get; }
+    public ICommand AddChiptuneLibraryFolderCommand { get; }
+    public ICommand RemoveChiptuneLibraryFolderCommand { get; }
+    public ICommand RefreshChiptuneLibraryCommand { get; }
+    public ICommand OpenSelectedChiptuneCommand { get; }
+    public ICommand BrowseUserDataFolderCommand { get; }
+    public ICommand BrowseExternalToolCommand { get; }
 
     /// <summary>
     /// Stores or exposes PlayCommand.
@@ -1883,6 +1930,12 @@ public sealed class MainViewModel : BaseViewModel
         ApplyThemeCommand = new RelayCommand(theme => SelectedTheme = NormalizeThemeName(theme?.ToString() ?? "FL Grape"));
         ApplyAudioSettingsCommand = new RelayCommand(_ => ApplyAudioSettings());
         RefreshAudioDevicesCommand = new RelayCommand(_ => RefreshAudioOutputDevices());
+        AddChiptuneLibraryFolderCommand = new RelayCommand(_ => AddChiptuneLibraryFolder());
+        RemoveChiptuneLibraryFolderCommand = new RelayCommand(_ => RemoveChiptuneLibraryFolder(), _ => !string.IsNullOrWhiteSpace(SelectedBrowserSearchFolder));
+        RefreshChiptuneLibraryCommand = new RelayCommand(_ => RefreshChiptuneLibrary());
+        OpenSelectedChiptuneCommand = new RelayCommand(_ => OpenSelectedChiptune(), _ => SelectedChiptuneLibraryEntry is not null);
+        BrowseUserDataFolderCommand = new RelayCommand(_ => BrowseUserDataFolder());
+        BrowseExternalToolCommand = new RelayCommand(_ => BrowseExternalTool());
 
         PlayCommand = new RelayCommand(_ => Play(), _ => !IsPlaying);
         PauseCommand = new RelayCommand(_ => Pause(), _ => IsPlaying);
@@ -1912,7 +1965,10 @@ public sealed class MainViewModel : BaseViewModel
 
         RefreshAudioOutputDevices();
         LoadConfiguration(silent: true);
+        RestorePreviousStateIfEnabled();
         ApplyUiChromeSettings();
+        ConfigureProjectAutosaveTimer();
+        RefreshChiptuneLibrary();
         RuntimeDependencyResolver.DependencyLoaded += (_, info) =>
         {
             if (LogDependencyLoadDetails)
@@ -2988,6 +3044,7 @@ public sealed class MainViewModel : BaseViewModel
         GeneralProjectWarningMb = GeneralProjectWarningMb,
         GeneralSilentStartup = GeneralSilentStartup,
         GeneralRestorePreviousState = GeneralRestorePreviousState,
+        LastProjectPath = string.IsNullOrWhiteSpace(FilePath) ? _lastProjectPath : FilePath,
         GeneralHighPerformancePowerPlan = GeneralHighPerformancePowerPlan,
         FileAutosaveMode = FileAutosaveMode,
         FileBackupLocationMode = FileBackupLocationMode,
@@ -3077,6 +3134,7 @@ public sealed class MainViewModel : BaseViewModel
         GeneralProjectWarningMb = configuration.GeneralProjectWarningMb <= 0 ? 100 : configuration.GeneralProjectWarningMb;
         GeneralSilentStartup = configuration.GeneralSilentStartup;
         GeneralRestorePreviousState = configuration.GeneralRestorePreviousState;
+        _lastProjectPath = configuration.LastProjectPath ?? string.Empty;
         GeneralHighPerformancePowerPlan = configuration.GeneralHighPerformancePowerPlan;
         FileAutosaveMode = configuration.FileAutosaveMode;
         FileBackupLocationMode = configuration.FileBackupLocationMode;
@@ -3084,6 +3142,7 @@ public sealed class MainViewModel : BaseViewModel
         BrowserSearchFolders.Clear();
         foreach (string folder in NormalizeChiptuneSearchFolders(configuration.BrowserSearchFolders))
             BrowserSearchFolders.Add(folder);
+        SelectedBrowserSearchFolder = BrowserSearchFolders.FirstOrDefault();
         ExternalToolPath = configuration.ExternalToolPath;
         ThemeGuiScaling = configuration.ThemeGuiScaling;
         ThemePopupScaling = configuration.ThemePopupScaling;
@@ -3110,8 +3169,17 @@ public sealed class MainViewModel : BaseViewModel
     /// </summary>
     public void ShowStartupTipIfEnabled()
     {
-        if (ShowTipsOnStartup)
+        if (ShowTipsOnStartup && !GeneralSilentStartup)
             ShowTipWindow(startup: true);
+    }
+
+    private void RestorePreviousStateIfEnabled()
+    {
+        if (!GeneralRestorePreviousState || string.IsNullOrWhiteSpace(_lastProjectPath) || !File.Exists(_lastProjectPath))
+            return;
+
+        OpenFile(_lastProjectPath);
+        AppLogger.Info($"[Settings] Restored previous project path=\"{_lastProjectPath}\"");
     }
 
     /// <summary>
@@ -4814,29 +4882,34 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// <summary>
     /// Executes the OpenFile operation.
     /// </summary>
-    private void OpenFile()
+    private void OpenFile(string? explicitPath = null)
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog
+        string? path = explicitPath;
+        if (string.IsNullOrWhiteSpace(path))
         {
-            Title = L("OpenSongOrModule"),
-            Filter = BuildOpenDialogFilter()
-        };
-        if (dlg.ShowDialog() != true) return;
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = L("OpenSongOrModule"),
+                Filter = BuildOpenDialogFilter()
+            };
+            if (dlg.ShowDialog() != true) return;
+            path = dlg.FileName;
+        }
 
         Stop();
         try
         {
-            if (Path.GetExtension(dlg.FileName).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
+            if (Path.GetExtension(path).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
             {
-                Song = NativeChipModuleFile.Load(dlg.FileName);
-                FilePath = dlg.FileName;
-                _originalModulePath = dlg.FileName;
+                Song = NativeChipModuleFile.Load(path);
+                FilePath = path;
+                _originalModulePath = path;
                 _originalModuleData = _song.OriginalModuleData is null ? null : (byte[])_song.OriginalModuleData.Clone();
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
                 if (_originalModuleData is { Length: > 0 })
                 {
-                    string sourceName = $"{Path.GetFileNameWithoutExtension(dlg.FileName)}{_song.SourceModuleExtension}";
+                    string sourceName = $"{Path.GetFileNameWithoutExtension(path)}{_song.SourceModuleExtension}";
                     _useOriginalModulePlayback = Audio.ModulePlayer.Load(_originalModuleData, sourceName);
                     Audio.UseModulePlayer = _useOriginalModulePlayback;
                     AppLogger.Info($"[Document] AMC embedded source playback {(_useOriginalModulePlayback ? "loaded" : "failed")} ext={_song.SourceModuleExtension} bytes={_originalModuleData.Length}");
@@ -4849,20 +4922,20 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 IsDirty = false;
                 ClearHistory();
                 StatusText = _useOriginalModulePlayback
-                    ? $"Loaded native chip module with embedded {_song.Format} source: {Path.GetFileName(dlg.FileName)}"
-                    : $"Loaded native chip module: {Path.GetFileName(dlg.FileName)}";
+                    ? $"Loaded native chip module with embedded {_song.Format} source: {Path.GetFileName(path)}"
+                    : $"Loaded native chip module: {Path.GetFileName(path)}";
                 AppLogger.Info(
-                    $"[Document] Loaded AMC path=\"{dlg.FileName}\" title=\"{_song.Title}\" " +
+                    $"[Document] Loaded AMC path=\"{path}\" title=\"{_song.Title}\" " +
                     $"format={_song.Format} sourceBytes={_originalModuleData?.Length ?? 0} " +
                     $"instruments={_song.Instruments.Count} tracks={_song.Tracks.Count} patterns={_song.Patterns.Count} blocks={_song.Tracks.Sum(t => t.Blocks.Count)}");
                 return;
             }
 
-            if (Path.GetExtension(dlg.FileName).Equals(SongProjectSerializer.Extension, StringComparison.OrdinalIgnoreCase))
+            if (Path.GetExtension(path).Equals(SongProjectSerializer.Extension, StringComparison.OrdinalIgnoreCase))
             {
-                Song = SongProjectSerializer.Load(dlg.FileName);
-                FilePath = dlg.FileName;
-                _originalModulePath = dlg.FileName;
+                Song = SongProjectSerializer.Load(path);
+                FilePath = path;
+                _originalModulePath = path;
                 _originalModuleData = _song.OriginalModuleData is null ? null : (byte[])_song.OriginalModuleData.Clone();
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
@@ -4872,33 +4945,33 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 UpdateRuntimeTempoReadout();
                 IsDirty = false;
                 ClearHistory();
-                StatusText = $"Loaded project: {Path.GetFileName(dlg.FileName)}";
+                StatusText = $"Loaded project: {Path.GetFileName(path)}";
                 AppLogger.Info(
-                    $"[Document] Loaded amchip path=\"{dlg.FileName}\" title=\"{_song.Title}\" " +
+                    $"[Document] Loaded amchip path=\"{path}\" title=\"{_song.Title}\" " +
                     $"instruments={_song.Instruments.Count} tracks={_song.Tracks.Count} patterns={_song.Patterns.Count} blocks={_song.Tracks.Sum(t => t.Blocks.Count)}");
                 return;
             }
 
-            string extension = Path.GetExtension(dlg.FileName);
+            string extension = Path.GetExtension(path);
             if (extension.Equals(".fsc", StringComparison.OrdinalIgnoreCase))
             {
-                ImportNotesFromOpenDialog(dlg.FileName, FLScoreFile.ImportPatternChannel(dlg.FileName, _song.RowsPerBeat), "FSC");
+                ImportNotesFromOpenDialog(path, FLScoreFile.ImportPatternChannel(path, _song.RowsPerBeat), "FSC");
                 return;
             }
 
             if (extension.Equals(".mid", StringComparison.OrdinalIgnoreCase) ||
                 extension.Equals(".midi", StringComparison.OrdinalIgnoreCase))
             {
-                ImportNotesFromOpenDialog(dlg.FileName, MidiFile.ImportPatternChannel(dlg.FileName, _song.RowsPerBeat), "MIDI");
+                ImportNotesFromOpenDialog(path, MidiFile.ImportPatternChannel(path, _song.RowsPerBeat), "MIDI");
                 return;
             }
 
-            byte[] data = File.ReadAllBytes(dlg.FileName);
-            if (ChipTuneFile.IsSupported(dlg.FileName))
+            byte[] data = File.ReadAllBytes(path);
+            if (ChipTuneFile.IsSupported(path))
             {
-                Song = ChipTuneFile.ImportAsSong(data, dlg.FileName);
-                FilePath = dlg.FileName;
-                _originalModulePath = dlg.FileName;
+                Song = ChipTuneFile.ImportAsSong(data, path);
+                FilePath = path;
+                _originalModulePath = path;
                 _originalModuleData = (byte[])data.Clone();
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
@@ -4909,22 +4982,22 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 IsDirty = false;
                 ClearHistory();
                 AppLogger.Info(
-                    $"[Document] Imported chip tune path=\"{dlg.FileName}\" format={_song.Format} type={_song.SourceModuleType} ext={_song.SourceModuleExtension} bytes={data.Length}");
-                StatusText = $"Loaded chip tune: {Path.GetFileName(dlg.FileName)} - internal renderer ready";
+                    $"[Document] Imported chip tune path=\"{path}\" format={_song.Format} type={_song.SourceModuleType} ext={_song.SourceModuleExtension} bytes={data.Length}");
+                StatusText = $"Loaded chip tune: {Path.GetFileName(path)} - internal renderer ready";
                 if (_song.Format != ModuleFormat.NSF)
                     _ = TryRenderChipPreviewForPlaybackAsync();
                 return;
             }
 
-            if (Audio.ModulePlayer.Load(data, dlg.FileName))
+            if (Audio.ModulePlayer.Load(data, path))
             {
                 var imported = Audio.ModulePlayer.ImportAsSong();
                 if (imported is not null)
                 {
                     Song = imported;
                     _song.OriginalModuleData = (byte[])data.Clone();
-                    FilePath = dlg.FileName;
-                    _originalModulePath = dlg.FileName;
+                    FilePath = path;
+                    _originalModulePath = path;
                     _useOriginalModulePlayback = true;
                     _originalModuleData = (byte[])data.Clone();
                     Audio.UseModulePlayer = true;
@@ -4934,9 +5007,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                     PlaybackState = PlaybackState.Stopped;
                     IsDirty = false;
                     ClearHistory();
-                    StatusText = $"Loaded: {Path.GetFileName(dlg.FileName)} — press Play";
+                    StatusText = $"Loaded: {Path.GetFileName(path)} - press Play";
                     AppLogger.Info(
-                        $"[Document] Imported module path=\"{dlg.FileName}\" format={_song.Format} type={_song.SourceModuleType} ext={_song.SourceModuleExtension} " +
+                        $"[Document] Imported module path=\"{path}\" format={_song.Format} type={_song.SourceModuleType} ext={_song.SourceModuleExtension} " +
                         $"instruments={_song.Instruments.Count} tracks={_song.Tracks.Count} patterns={_song.Patterns.Count} orders={_song.OrderList.Count}");
                 }
             }
@@ -4987,6 +5060,215 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         AppLogger.Info(
             $"[Document] Open imported {kind} path=\"{path}\" notes={notes.Count} " +
             $"pattern={PianoRoll.CurrentPatternIndex} channel={PianoRoll.CurrentChannel}");
+    }
+
+    private void AddChiptuneLibraryFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Add chiptune library folder"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        string folder = dlg.FolderName;
+        if (BrowserSearchFolders.Any(existing => string.Equals(existing, folder, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedBrowserSearchFolder = folder;
+            return;
+        }
+
+        BrowserSearchFolders.Add(folder);
+        SelectedBrowserSearchFolder = folder;
+        SaveConfigurationOnExit();
+        RefreshChiptuneLibrary();
+        StatusText = $"Added library folder: {folder}";
+        AppLogger.Info($"[Library] Added folder=\"{folder}\"");
+    }
+
+    private void RemoveChiptuneLibraryFolder()
+    {
+        string? folder = SelectedBrowserSearchFolder;
+        if (string.IsNullOrWhiteSpace(folder))
+            return;
+
+        BrowserSearchFolders.Remove(folder);
+        SelectedBrowserSearchFolder = BrowserSearchFolders.FirstOrDefault();
+        SaveConfigurationOnExit();
+        RefreshChiptuneLibrary();
+        StatusText = $"Removed library folder: {folder}";
+        AppLogger.Info($"[Library] Removed folder=\"{folder}\"");
+    }
+
+    private void BrowseUserDataFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Choose amChipper user data folder"
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        UserDataFolder = dlg.FolderName;
+        SaveConfigurationOnExit();
+        StatusText = $"User data folder: {UserDataFolder}";
+    }
+
+    private void BrowseExternalTool()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose external tracker tool",
+            Filter = "Programs (*.exe)|*.exe|All Files (*.*)|*.*",
+            CheckFileExists = true
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        ExternalToolPath = dlg.FileName;
+        SaveConfigurationOnExit();
+        StatusText = $"External tracker tool: {Path.GetFileName(ExternalToolPath)}";
+    }
+
+    private void RefreshChiptuneLibrary()
+    {
+        ChiptuneLibraryEntries.Clear();
+        string filter = LibrarySearchText.Trim();
+        int missing = 0;
+        int skipped = 0;
+        const int maxEntries = 750;
+
+        foreach (string folder in BrowserSearchFolders.Where(static path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!Directory.Exists(folder))
+            {
+                missing++;
+                continue;
+            }
+
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                skipped++;
+                AppLogger.Warning($"[Library] Could not scan folder=\"{folder}\" error=\"{ex.Message}\"");
+                continue;
+            }
+
+            foreach (string file in files)
+            {
+                if (ChiptuneLibraryEntries.Count >= maxEntries)
+                    break;
+
+                if (!IsLibraryFile(file))
+                    continue;
+
+                if (filter.Length > 0 &&
+                    Path.GetFileName(file).IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    file.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+
+                try
+                {
+                    ChiptuneLibraryEntries.Add(new ChiptuneLibraryEntry(file, folder));
+                }
+                catch (IOException)
+                {
+                    skipped++;
+                }
+            }
+
+            if (ChiptuneLibraryEntries.Count >= maxEntries)
+                break;
+        }
+
+        SelectedChiptuneLibraryEntry = ChiptuneLibraryEntries.FirstOrDefault();
+        ChiptuneLibraryStatus = $"{ChiptuneLibraryEntries.Count} files" +
+            (missing > 0 ? $" | {missing} missing folder(s)" : string.Empty) +
+            (skipped > 0 ? $" | {skipped} skipped" : string.Empty);
+        AppLogger.Info($"[Library] Scan complete files={ChiptuneLibraryEntries.Count} missingFolders={missing} skipped={skipped} filter=\"{filter}\"");
+    }
+
+    private void OpenSelectedChiptune()
+    {
+        if (SelectedChiptuneLibraryEntry is null)
+            return;
+
+        OpenFile(SelectedChiptuneLibraryEntry.Path);
+    }
+
+    private static bool IsLibraryFile(string path)
+    {
+        string extension = Path.GetExtension(path);
+        return ModuleFormatCatalog.IsSupportedExtension(extension) ||
+               extension.Equals(SongProjectSerializer.Extension, StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".mid", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".midi", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".fsc", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ConfigureProjectAutosaveTimer()
+    {
+        if (_projectAutosaveTimer.Interval == TimeSpan.Zero)
+            _projectAutosaveTimer.Tick += (_, _) => TryAutosaveProject("timer");
+
+        TimeSpan? interval = FileAutosaveMode switch
+        {
+            "Frequently (every 2 minutes)" => TimeSpan.FromMinutes(2),
+            "Occasionally (every 10 minutes)" => TimeSpan.FromMinutes(10),
+            _ => null
+        };
+
+        _projectAutosaveTimer.Stop();
+        if (interval is { } cadence)
+        {
+            _projectAutosaveTimer.Interval = cadence;
+            _projectAutosaveTimer.Start();
+        }
+    }
+
+    private bool TryAutosaveProject(string reason)
+    {
+        if (!IsDirty)
+            return true;
+
+        try
+        {
+            string backupDir = ResolveBackupDirectory();
+            Directory.CreateDirectory(backupDir);
+            string title = SanitizeFileName(string.IsNullOrWhiteSpace(_song.Title) ? "Untitled" : _song.Title);
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            string backupPath = Path.Combine(backupDir, $"{title}.{stamp}.autosave{SongProjectSerializer.Extension}");
+            SongProjectSerializer.Save(_song, backupPath);
+            StatusText = $"Autosaved backup: {Path.GetFileName(backupPath)}";
+            AppLogger.Info($"[Autosave] Project autosaved reason={reason} path=\"{backupPath}\"");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Autosave failed: {ex.Message}";
+            AppLogger.Error(ex, $"[Autosave] Failed reason={reason}");
+            return false;
+        }
+    }
+
+    private string ResolveBackupDirectory()
+    {
+        string mode = FileBackupLocationMode;
+        if (mode == "Project data folder when available" && !string.IsNullOrWhiteSpace(FilePath))
+        {
+            string? projectDir = Path.GetDirectoryName(FilePath);
+            if (!string.IsNullOrWhiteSpace(projectDir))
+                return Path.Combine(projectDir, ".amChipperBackups");
+        }
+
+        if (mode == "User data folder" && !string.IsNullOrWhiteSpace(UserDataFolder))
+            return Path.Combine(UserDataFolder, "Backups");
+
+        return Path.Combine(AppConfigurationStore.ConfigurationDirectory, "Backups");
     }
 
     /// <summary>
@@ -5166,6 +5448,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
 
         if (window.ShowDialog() == true && list.SelectedItem is ExportOption option)
         {
+            if (FileAutosaveMode == "Before every export" && !TryAutosaveProject("before export"))
+                return;
+
             AppLogger.Info($"[Document] Export chooser selected \"{option.Title}\"");
             option.Action();
         }

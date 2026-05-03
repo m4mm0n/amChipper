@@ -233,6 +233,10 @@ public sealed class AppConfiguration
     /// </summary>
     public bool GeneralRestorePreviousState { get; set; }
     /// <summary>
+    /// Last project/module path used by the optional restore-on-launch setting.
+    /// </summary>
+    public string LastProjectPath { get; set; } = string.Empty;
+    /// <summary>
     /// Stores or exposes GeneralHighPerformancePowerPlan.
     /// </summary>
     public bool GeneralHighPerformancePowerPlan { get; set; } = true;

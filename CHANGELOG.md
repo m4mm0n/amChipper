@@ -2,6 +2,23 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.1.0-AMC20260503.3 - 03.05.2026
+
+### Settings Repair, Sidebar Library, and NSFE Normalization
+
+- Added a real left-sidebar Library tab backed by the configured chiptune folders.
+- Added sidebar actions to add folders, remove folders, refresh the scan, filter the library, and open supported files directly from the library list.
+- Wired the Settings chiptune-library folder list to the same add/remove/refresh commands so the setting now controls a visible workflow.
+- Added browse buttons for the user-data folder and external tracker-tool path.
+- Made autosave create timestamped `.amchip` backup snapshots using the selected backup location, including the "Before every export" mode.
+- Wired "Restore previous state after launch" and "Silent startup" into launch behavior.
+- Removed misleading Settings controls for GUI scaling, pop-up scaling, color maps, animations, transparent windows, high-visibility editor lines, small scrollbars, undo knob tweaks, recent-change sorting, and high-performance power behavior because those controls were only persisted and not meaningfully applied.
+- Replaced the removed theme-engine section with live appearance controls for theme, workspace density, toolbar size, button shine, and panel shadows.
+- Added NSFE chunk normalization so straightforward `.nsfe` INFO/DATA/BANK chunks are converted into NSF-compatible bytes for metadata, import, rendering, and live playback.
+- Added regression coverage for NSFE import/render conversion.
+- Bumped the app informational version to `v0.2.1.0-AMC20260503.3`.
+- Bumped `amChipper.SidPlayer.dll` to `v0.2.1.0` and `amChipper.NsfPlayer.dll` to `v0.2.2.0`.
+
 ## v0.2.0.0-AMC20260503.2 - 03.05.2026
 
 ### NSF Buffered Playback and Chiptune-Focused Settings

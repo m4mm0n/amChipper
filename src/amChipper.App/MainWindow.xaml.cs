@@ -188,6 +188,12 @@ public partial class MainWindow : Window
     /// </summary>
     private void MenuItem_Exit(object sender, RoutedEventArgs e) => Close();
 
+    private void LibraryList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_vm.OpenSelectedChiptuneCommand.CanExecute(null))
+            _vm.OpenSelectedChiptuneCommand.Execute(null);
+    }
+
     /// <summary>
     /// Executes the View_ProjectHub operation.
     /// </summary>

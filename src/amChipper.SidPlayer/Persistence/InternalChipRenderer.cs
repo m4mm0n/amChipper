@@ -33,7 +33,7 @@ public static class InternalChipRenderer
         sampleRate = Math.Clamp(sampleRate, 8000, 192000);
         if (metadata.Format == ModuleFormat.NSF)
         {
-            var program = NsfProgram.Load(data) ?? throw new InvalidDataException("Not an NSF file.");
+            var program = NsfProgram.Load(ChipTuneFile.NormalizeNsfData(data)) ?? throw new InvalidDataException("Not an NSF file.");
             return new NsfStreamRenderer(program, metadata, sampleRate);
         }
 
@@ -84,7 +84,7 @@ public static class InternalChipRenderer
     /// </summary>
     public static IReadOnlyList<NsfVoiceRow> InspectNsfVoiceRows(byte[] data, int rows = 512, int? songNumber = null, int maxMilliseconds = 1200)
     {
-        var nsf = NsfProgram.Load(data) ?? throw new InvalidDataException("Not an NSF file.");
+        var nsf = NsfProgram.Load(ChipTuneFile.NormalizeNsfData(data)) ?? throw new InvalidDataException("Not an NSF file.");
         int startSong = Math.Clamp(songNumber ?? nsf.StartSong, 1, nsf.SongCount);
         return NsfRuntime.InspectVoiceRows(nsf, startSong, Math.Clamp(rows, 1, 8192), Math.Clamp(maxMilliseconds, 100, 10000));
     }
@@ -178,7 +178,8 @@ public static class InternalChipRenderer
     /// </summary>
     private static float[] RenderNsf(byte[] data, ChipTuneMetadata metadata, int seconds, int sampleRate)
     {
-        var program = NsfProgram.Load(data);
+        byte[] nsfData = ChipTuneFile.NormalizeNsfData(data);
+        var program = NsfProgram.Load(nsfData);
         if (program is null)
             return RenderNsfDigestFallback(data, seconds, sampleRate);
 

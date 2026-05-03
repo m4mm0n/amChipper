@@ -59,6 +59,23 @@ public sealed class ChipTuneFileTests
         Assert.Equal(nsf, song.OriginalModuleData);
     }
 
+    [Fact]
+    public void NsfeImportConvertsChunksForRenderer()
+    {
+        byte[] nsfe = CreateNsfeFromNsf(CreateNsf());
+
+        var metadata = ChipTuneFile.ReadMetadata(nsfe, "chunked.nsfe");
+        var song = ChipTuneFile.ImportAsSong(nsfe, "chunked.nsfe");
+        float[] samples = InternalChipRenderer.RenderStereoFloat(nsfe, "chunked.nsfe", seconds: 1, sampleRate: 8000);
+
+        Assert.Equal(ModuleFormat.NSF, metadata.Format);
+        Assert.Equal("NSFE", metadata.Type);
+        Assert.Equal(ModuleFormat.NSF, song.Format);
+        Assert.Equal(".nsfe", song.SourceModuleExtension);
+        Assert.Contains("converted from NSFE", song.Comment);
+        Assert.True(samples.Max(sample => Math.Abs(sample)) > 0.0001f);
+    }
+
     [Theory]
     [InlineData("sid")]
     [InlineData("nsf")]
@@ -399,5 +416,37 @@ public sealed class ChipTuneFileTests
         init.CopyTo(nsf, 0x80);
         play.CopyTo(nsf, 0xA0);
         return nsf;
+    }
+
+    private static byte[] CreateNsfeFromNsf(byte[] nsf)
+    {
+        var bytes = new List<byte>();
+        bytes.AddRange(Encoding.ASCII.GetBytes("NSFE"));
+
+        byte[] info = new byte[10];
+        info[0] = nsf[0x08];
+        info[1] = nsf[0x09];
+        info[2] = nsf[0x0A];
+        info[3] = nsf[0x0B];
+        info[4] = nsf[0x0C];
+        info[5] = nsf[0x0D];
+        info[6] = 0;
+        info[7] = nsf[0x7B];
+        info[8] = nsf[0x06];
+        info[9] = 0;
+        AddNsfeChunk(bytes, "INFO", info);
+        AddNsfeChunk(bytes, "DATA", nsf[0x80..]);
+        AddNsfeChunk(bytes, "NEND", []);
+        return bytes.ToArray();
+    }
+
+    private static void AddNsfeChunk(List<byte> bytes, string id, byte[] payload)
+    {
+        bytes.Add((byte)(payload.Length & 0xFF));
+        bytes.Add((byte)((payload.Length >> 8) & 0xFF));
+        bytes.Add((byte)((payload.Length >> 16) & 0xFF));
+        bytes.Add((byte)((payload.Length >> 24) & 0xFF));
+        bytes.AddRange(Encoding.ASCII.GetBytes(id));
+        bytes.AddRange(payload);
     }
 }

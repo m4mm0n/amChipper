@@ -253,9 +253,72 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <!-- Left panel: Instrument browser -->
-      <browser:InstrumentBrowserControl Grid.Column="0"
-                                        DataContext="{Binding InstrumentBrowser}"/>
+      <!-- Left panel: instruments and chiptune library -->
+      <TabControl Grid.Column="0"
+                  Background="{DynamicResource BgPanel}"
+                  BorderThickness="0"
+                  Padding="0">
+        <TabItem Header="Instruments">
+          <browser:InstrumentBrowserControl DataContext="{Binding InstrumentBrowser}"/>
+        </TabItem>
+        <TabItem Header="Library">
+          <Grid Background="{DynamicResource BgPanel}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="8">
+              <TextBlock Text="Chiptune library" Style="{StaticResource SettingLabel}" Margin="0,0,0,4"/>
+              <TextBox Text="{Binding LibrarySearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="Filter module, SID, NSF, MIDI and FSC files"/>
+              <UniformGrid Columns="3" Margin="0,6,0,0">
+                <Button Content="+" Command="{Binding AddChiptuneLibraryFolderCommand}" Margin="0,0,4,0" ToolTip="Add folder"/>
+                <Button Content="-" Command="{Binding RemoveChiptuneLibraryFolderCommand}" Margin="2,0,2,0" ToolTip="Remove selected folder"/>
+                <Button Content="↻" Command="{Binding RefreshChiptuneLibraryCommand}" Margin="4,0,0,0" ToolTip="Refresh library"/>
+              </UniformGrid>
+              <ComboBox ItemsSource="{Binding BrowserSearchFolders}"
+                        SelectedItem="{Binding SelectedBrowserSearchFolder, Mode=TwoWay}"
+                        Margin="0,6,0,0"
+                        ToolTip="Current library folders"/>
+            </StackPanel>
+
+            <ListBox Grid.Row="1"
+                     ItemsSource="{Binding ChiptuneLibraryEntries}"
+                     SelectedItem="{Binding SelectedChiptuneLibraryEntry, Mode=TwoWay}"
+                     MouseDoubleClick="LibraryList_MouseDoubleClick"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="2,3">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="42"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{DynamicResource Accent}" CornerRadius="2" Padding="3,1" Margin="0,0,6,0">
+                      <TextBlock Text="{Binding Extension}" FontFamily="Consolas" FontSize="10" FontWeight="Bold"
+                                 Foreground="{DynamicResource BgDeep}" HorizontalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                      <TextBlock Text="{Binding RelativePath}" TextTrimming="CharacterEllipsis"
+                                 Foreground="{DynamicResource TextSecondary}" FontSize="10"/>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <DockPanel Grid.Row="2" Margin="8">
+              <Button DockPanel.Dock="Right" Content="Open" Width="62" Command="{Binding OpenSelectedChiptuneCommand}"/>
+              <TextBlock Text="{Binding ChiptuneLibraryStatus}" Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+          </Grid>
+        </TabItem>
+      </TabControl>
 
       <GridSplitter Grid.Column="1"
                     HorizontalAlignment="Stretch"
@@ -983,11 +1046,8 @@
                       <Slider Minimum="10" Maximum="1000" TickFrequency="10" IsSnapToTickEnabled="True"
                               Value="{Binding GeneralProjectWarningMb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
-                    <CheckBox Content="Undo knob and slider tweaks" IsChecked="{Binding GeneralUndoKnobTweaks, Mode=TwoWay}"/>
-                    <CheckBox Content="Show recent changes at the top" IsChecked="{Binding GeneralShowRecentChanges, Mode=TwoWay}"/>
                     <CheckBox Content="Silent startup" IsChecked="{Binding GeneralSilentStartup, Mode=TwoWay}"/>
                     <CheckBox Content="Restore previous state after launch" IsChecked="{Binding GeneralRestorePreviousState, Mode=TwoWay}"/>
-                    <CheckBox Content="Prefer high-performance power behavior" IsChecked="{Binding GeneralHighPerformancePowerPlan, Mode=TwoWay}"/>
                   </StackPanel>
                 </Border>
 
@@ -1134,42 +1194,53 @@
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="User data folder" Style="{StaticResource SettingLabel}"/>
                       <TextBox Grid.Column="1" Text="{Binding UserDataFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      <Button Grid.Column="2" Content="Browse" Command="{Binding BrowseUserDataFolderCommand}" Margin="6,0,0,0"/>
                     </Grid>
                     <TextBlock Text="Chiptune library folders" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
-                    <ListBox ItemsSource="{Binding BrowserSearchFolders}" MinHeight="70" MaxHeight="110" Margin="0,4,0,8"/>
+                    <ListBox ItemsSource="{Binding BrowserSearchFolders}"
+                             SelectedItem="{Binding SelectedBrowserSearchFolder, Mode=TwoWay}"
+                             MinHeight="70" MaxHeight="110" Margin="0,4,0,6"/>
+                    <UniformGrid Columns="3" Margin="0,0,0,8">
+                      <Button Content="Add folder" Command="{Binding AddChiptuneLibraryFolderCommand}" Margin="0,0,4,0"/>
+                      <Button Content="Remove" Command="{Binding RemoveChiptuneLibraryFolderCommand}" Margin="2,0,2,0"/>
+                      <Button Content="Refresh sidebar" Command="{Binding RefreshChiptuneLibraryCommand}" Margin="4,0,0,0"/>
+                    </UniformGrid>
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="External tracker tool" Style="{StaticResource SettingLabel}"/>
                       <TextBox Grid.Column="1" Text="{Binding ExternalToolPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      <Button Grid.Column="2" Content="Browse" Command="{Binding BrowseExternalToolCommand}" Margin="6,0,0,0"/>
                     </Grid>
                   </StackPanel>
                 </Border>
 
                 <Border Style="{StaticResource SettingsPanel}">
                   <StackPanel>
-                    <TextBlock Text="Theme engine" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}"/>
                     <UniformGrid Columns="2">
                       <Grid Margin="0,0,8,8">
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="110"/>
                           <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="GUI scaling" Style="{StaticResource SettingLabel}"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemeGuiScaling, Mode=TwoWay}"/>
+                        <TextBlock Text="{Binding [Theme]}" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"/>
                       </Grid>
                       <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="110"/>
                           <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Pop-ups" Style="{StaticResource SettingLabel}"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemePopupScaling, Mode=TwoWay}"/>
+                        <TextBlock Text="{Binding [WorkspaceDensity]}" Style="{StaticResource SettingLabel}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding WorkspaceDensityOptions}" SelectedItem="{Binding WorkspaceDensity, Mode=TwoWay}"/>
                       </Grid>
                       <Grid Margin="0,0,8,8">
                         <Grid.ColumnDefinitions>
@@ -1177,29 +1248,11 @@
                           <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Toolbars" Style="{StaticResource SettingLabel}"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding ScalingModeOptions}" SelectedItem="{Binding ThemeToolbarScaling, Mode=TwoWay}"/>
-                      </Grid>
-                      <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="110"/>
-                          <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Color map" Style="{StaticResource SettingLabel}"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeColorMapOptions}" SelectedItem="{Binding ThemeColorMap, Mode=TwoWay}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding ToolbarButtonSizeOptions}" SelectedItem="{Binding ToolbarButtonSize, Mode=TwoWay}"/>
                       </Grid>
                     </UniformGrid>
-                    <Grid Margin="0,0,0,8">
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
-                        <ColumnDefinition Width="*"/>
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Text="Animations" Style="{StaticResource SettingLabel}"/>
-                      <ComboBox Grid.Column="1" ItemsSource="{Binding AnimationModeOptions}"
-                                SelectedItem="{Binding ThemeAnimationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                    </Grid>
-                    <CheckBox Content="Transparent windows" IsChecked="{Binding ThemeTransparentWindows, Mode=TwoWay}"/>
-                    <CheckBox Content="High visibility editor lines" IsChecked="{Binding ThemeHighVisibility, Mode=TwoWay}"/>
-                    <CheckBox Content="Small scrollbars in editors" IsChecked="{Binding ThemeSmallScrollbars, Mode=TwoWay}"/>
+                    <CheckBox Content="Button shine" IsChecked="{Binding ShowUiShine, Mode=TwoWay}"/>
+                    <CheckBox Content="Panel shadows" IsChecked="{Binding ShowPanelShadows, Mode=TwoWay}"/>
                   </StackPanel>
                 </Border>
 
