@@ -2,7 +2,7 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
-## v0.2.1.0-AMC20260503.3 - 03.05.2026
+## v0.2.1.0-AMC20260503.4 - 03.05.2026
 
 ### Settings Repair, Sidebar Library, and NSFE Normalization
 
@@ -16,8 +16,9 @@ This changelog covers the implementation work performed from 30.04.2026 through 
 - Replaced the removed theme-engine section with live appearance controls for theme, workspace density, toolbar size, button shine, and panel shadows.
 - Added NSFE chunk normalization so straightforward `.nsfe` INFO/DATA/BANK chunks are converted into NSF-compatible bytes for metadata, import, rendering, and live playback.
 - Added regression coverage for NSFE import/render conversion.
-- Bumped the app informational version to `v0.2.1.0-AMC20260503.3`.
+- Bumped the app informational version to `v0.2.1.0-AMC20260503.4`.
 - Bumped `amChipper.SidPlayer.dll` to `v0.2.1.0` and `amChipper.NsfPlayer.dll` to `v0.2.2.0`.
+- Updated the GitHub Release workflow so the uploaded zip includes language packs, release documents, and libopenmpt native runtime DLLs.
 
 ## v0.2.0.0-AMC20260503.2 - 03.05.2026
 

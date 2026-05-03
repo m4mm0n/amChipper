@@ -48,6 +48,38 @@ jobs:
       - name: Publish
         run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\Ready2Release
 
+      - name: Publish language tool
+        run: dotnet publish .\src\amChipper.LanguageTool\amChipper.LanguageTool.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\Ready2Release\tools
+
+      - name: Export language packs
+        run: .\Ready2Release\tools\amChipper.LanguageTool.exe export --output .\Ready2Release\lang
+
+      - name: Add release documents and libopenmpt runtime
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath .\README.md,.\RELEASE_NOTES.md,.\CHANGELOG.md,.\LICENSE -Destination .\Ready2Release -Force
+
+          $libs = Join-Path $PWD "Ready2Release\libs"
+          New-Item -ItemType Directory -Path $libs -Force | Out-Null
+          $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.6+release.dev.windows.vs2022.zip"
+          $zipPath = Join-Path $env:TEMP ("amchipper-libopenmpt-" + [guid]::NewGuid().ToString("N") + ".zip")
+          Invoke-WebRequest -Uri $url -OutFile $zipPath -UserAgent "amChipperReleaseWorkflow/0.2"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+            $entries = @($zip.Entries | Where-Object { $_.FullName -like "bin/amd64/*.dll" })
+            if ($entries.Count -eq 0) {
+              throw "No bin/amd64 DLLs were found in the libopenmpt archive."
+            }
+            foreach ($entry in $entries) {
+              [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $libs $entry.Name), $true)
+            }
+          }
+          finally {
+            $zip.Dispose()
+            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Package
         shell: pwsh
         run: |

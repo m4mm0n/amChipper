@@ -1,4 +1,4 @@
-# amChipper v0.2.1.0-AMC20260503.3
+# amChipper v0.2.1.0-AMC20260503.4
 
 This release repairs the advanced Settings surface by removing non-functional controls, adding a real sidebar chiptune library, and improving the advertised NSFE/NSF path.
 
@@ -13,9 +13,10 @@ This release repairs the advanced Settings surface by removing non-functional co
 - Removed misleading Settings controls for theme-engine/system options that were only persisted but not applied.
 - Replaced them with appearance controls that are already live in the app: theme, workspace density, toolbar sizing, button shine, and panel shadows.
 - Added NSFE chunk normalization so straightforward `.nsfe` files are converted into NSF-compatible data for metadata, import, rendering, and live playback instead of falling back to digest audio.
-- App build bumped to `v0.2.1.0-AMC20260503.3`.
+- App build bumped to `v0.2.1.0-AMC20260503.4`.
 - SID plugin assembly bumped to `v0.2.1.0`.
 - NSF plugin assembly bumped to `v0.2.2.0`.
+- GitHub release packaging now includes language packs, release documents, and the libopenmpt native runtime DLLs used by tracker playback.
 
 ## Notes
 
