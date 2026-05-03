@@ -264,8 +264,6 @@ public static class InternalChipRenderer
             ushort load = ReadLe(data, 0x08);
             ushort init = ReadLe(data, 0x0A);
             ushort play = ReadLe(data, 0x0C);
-            if (load < 0x6000 || init == 0 || play == 0)
-                return null;
 
             ushort ntscSpeed = ReadLe(data, 0x6E);
             ushort palSpeed = ReadLe(data, 0x78);
@@ -276,6 +274,11 @@ public static class InternalChipRenderer
 
             var banks = new byte[8];
             Array.Copy(data, 0x70, banks, 0, 8);
+            bool usesBanks = banks.Any(value => value != 0);
+            if (init == 0 || play == 0)
+                return null;
+            if (load < 0x6000 && !(load == 0 && usesBanks))
+                return null;
 
             return new NsfProgram
             {

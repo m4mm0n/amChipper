@@ -2,6 +2,19 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.2.0-AMC20260503.5 - 03.05.2026
+
+### Full NSF Corpus Hardening
+
+- Scanned `C:\Users\admin\OneDrive\Dokumenter\My FTPRush Downloads\_EVERYTHING` and found 4,682 `.nsf`/`.nsfe` files.
+- Ran the existing live NSF batch path across the full corpus before the fix: 4,680 audible, 0 silent, 2 failed.
+- Identified both failures as bank-switched NSF files with `Load=$0000` and valid high `Init`/`Play` routines.
+- Changed the NSF program loader to allow `Load=$0000` only when an initial bank table is present, preserving rejection for invalid non-banked zero-load files.
+- Added regression coverage for banked zero-load NSF streaming playback.
+- Re-ran the full corpus after the fix: 4,682 audible, 0 silent, 0 failed.
+- Bumped the app informational version to `v0.2.2.0-AMC20260503.5`.
+- Bumped `amChipper.SidPlayer.dll` to `v0.2.2.0` and `amChipper.NsfPlayer.dll` to `v0.2.3.0`.
+
 ## v0.2.1.0-AMC20260503.4 - 03.05.2026
 
 ### Settings Repair, Sidebar Library, and NSFE Normalization

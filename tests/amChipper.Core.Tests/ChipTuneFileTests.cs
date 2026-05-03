@@ -214,6 +214,23 @@ public sealed class ChipTuneFileTests
     }
 
     [Fact]
+    public void NsfStreamingRendererAcceptsBankedZeroLoadAddress()
+    {
+        byte[] nsf = CreateBankedZeroLoadNsf();
+        var metadata = ChipTuneFile.ReadMetadata(nsf, "banked-zero-load.nsf");
+        var renderer = InternalChipRenderer.CreateStreamingRenderer(nsf, "banked-zero-load.nsf", 44100);
+        float[] buffer = new float[4096 * 2];
+
+        for (int i = 0; i < 12; i++)
+            renderer.Render(buffer, 4096, 2);
+
+        float peak = buffer.Max(sample => Math.Abs(sample));
+        Assert.Equal(ModuleFormat.NSF, metadata.Format);
+        Assert.Equal(0, metadata.LoadAddress);
+        Assert.True(peak > 0.0001f, $"Expected audible banked zero-load NSF stream peak, got {peak}.");
+    }
+
+    [Fact]
     public void InternalRendererRunsIncludedPsidProgram()
     {
         string sidPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "64s_2nd_Choice.sid"));
@@ -415,6 +432,17 @@ public sealed class ChipTuneFileTests
 
         init.CopyTo(nsf, 0x80);
         play.CopyTo(nsf, 0xA0);
+        return nsf;
+    }
+
+    private static byte[] CreateBankedZeroLoadNsf()
+    {
+        byte[] nsf = CreateNsf();
+        nsf[0x08] = 0x00;
+        nsf[0x09] = 0x00;
+        nsf[0x70] = 0x00;
+        nsf[0x71] = 0x01;
+        WriteFixed(nsf, 0x0E, "Banked Zero Load");
         return nsf;
     }
 
