@@ -379,12 +379,22 @@ public sealed class RenderedAudioFilePlayer : IDisposable
 /// </summary>
 public sealed class ChipStreamPlayer
 {
+    private const int StreamChannels = 2;
+    private const int ProducerFrames = 512;
+
     private readonly IAppLogger _log;
     private readonly object _lock = new();
     private amChipper.Core.Persistence.IChipStreamRenderer? _renderer;
     private string? _sourcePath;
+    private float[] _ringBuffer = [];
+    private int _ringReadIndex;
+    private int _ringWriteIndex;
+    private int _ringAvailableSamples;
     private int _sampleRate = 44100;
     private double _positionSecs;
+    private CancellationTokenSource? _producerCancel;
+    private Task? _producerTask;
+    private volatile bool _producerFaulted;
 
     public ChipStreamPlayer(IAppLogger log) => _log = log;
 
@@ -393,7 +403,7 @@ public sealed class ChipStreamPlayer
     /// </summary>
     public bool IsLoaded
     {
-        get { lock (_lock) return _renderer is not null; }
+        get { lock (_lock) return _renderer is not null && !_producerFaulted; }
     }
 
     /// <summary>
@@ -409,26 +419,43 @@ public sealed class ChipStreamPlayer
     /// </summary>
     public bool Load(byte[] data, string sourcePath, int sampleRate)
     {
-        lock (_lock)
+        Stop();
+
+        amChipper.Core.Persistence.IChipStreamRenderer renderer;
+        try
         {
-            try
-            {
-                _renderer = InternalChipRenderer.CreateStreamingRenderer(data, sourcePath, sampleRate);
-                _sourcePath = sourcePath;
-                _sampleRate = Math.Max(1, _renderer.SampleRate);
-                _positionSecs = 0;
-                _log.Info($"[ChipStream] Loaded {_renderer.Format} stream path=\"{sourcePath}\" sampleRate={_renderer.SampleRate}");
-                return true;
-            }
-            catch (Exception ex)
+            renderer = InternalChipRenderer.CreateStreamingRenderer(data, sourcePath, sampleRate);
+        }
+        catch (Exception ex)
+        {
+            lock (_lock)
             {
                 _renderer = null;
                 _sourcePath = null;
                 _positionSecs = 0;
-                _log.Warning($"[ChipStream] Failed to load stream path=\"{sourcePath}\": {ex.Message}");
-                return false;
+                ResetRingLocked();
             }
+
+            _log.Warning($"[ChipStream] Failed to load stream path=\"{sourcePath}\": {ex.Message}");
+            return false;
         }
+
+        lock (_lock)
+        {
+            _renderer = renderer;
+            _sourcePath = sourcePath;
+            _sampleRate = Math.Max(1, renderer.SampleRate);
+            _positionSecs = 0;
+            _producerFaulted = false;
+            _ringBuffer = new float[Math.Max(_sampleRate * StreamChannels, ProducerFrames * StreamChannels * 4)];
+            ResetRingLocked();
+            var producerCancel = new CancellationTokenSource();
+            _producerCancel = producerCancel;
+            _producerTask = Task.Run(() => RunProducer(renderer, sourcePath, producerCancel.Token));
+        }
+
+        _log.Info($"[ChipStream] Loaded {renderer.Format} buffered stream path=\"{sourcePath}\" sampleRate={renderer.SampleRate}");
+        return true;
     }
 
     /// <summary>
@@ -436,26 +463,22 @@ public sealed class ChipStreamPlayer
     /// </summary>
     public int Render(float[] buffer, int frameCount, int outputChannels)
     {
+        int framesRead;
         lock (_lock)
         {
             if (_renderer is null)
                 return 0;
 
-            try
-            {
-                _renderer.Render(buffer, frameCount, outputChannels);
-                _positionSecs += frameCount / (double)_sampleRate;
-                return frameCount;
-            }
-            catch (Exception ex)
-            {
-                _log.Warning($"[ChipStream] Stream render stopped path=\"{_sourcePath}\": {ex.Message}");
-                _renderer = null;
-                _sourcePath = null;
-                _positionSecs = 0;
-                return 0;
-            }
+            framesRead = ReadRingLocked(buffer, frameCount, outputChannels);
+            _positionSecs += frameCount / (double)_sampleRate;
         }
+
+        int samplesRead = framesRead * outputChannels;
+        int totalSamples = frameCount * outputChannels;
+        if (samplesRead < totalSamples)
+            Array.Clear(buffer, samplesRead, totalSamples - samplesRead);
+
+        return frameCount;
     }
 
     /// <summary>
@@ -463,12 +486,150 @@ public sealed class ChipStreamPlayer
     /// </summary>
     public void Stop()
     {
+        CancellationTokenSource? cancel;
+        Task? producer;
         lock (_lock)
         {
+            cancel = _producerCancel;
+            producer = _producerTask;
+            _producerCancel = null;
+            _producerTask = null;
             _renderer = null;
             _sourcePath = null;
             _positionSecs = 0;
+            _producerFaulted = false;
+            ResetRingLocked();
         }
+
+        cancel?.Cancel();
+        try
+        {
+            producer?.Wait(TimeSpan.FromMilliseconds(50));
+        }
+        catch (Exception ex) when (ex is AggregateException or ObjectDisposedException)
+        {
+            _log.Debug($"[ChipStream] Producer stop ignored: {ex.GetType().Name}");
+        }
+        finally
+        {
+            cancel?.Dispose();
+        }
+    }
+
+    private void RunProducer(amChipper.Core.Persistence.IChipStreamRenderer renderer, string sourcePath, CancellationToken token)
+    {
+        var chunk = new float[ProducerFrames * StreamChannels];
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                bool shouldRender;
+                lock (_lock)
+                    shouldRender = _renderer == renderer && _ringAvailableSamples < _ringBuffer.Length - chunk.Length;
+
+                if (!shouldRender)
+                {
+                    Thread.Sleep(2);
+                    continue;
+                }
+
+                Array.Clear(chunk);
+                renderer.Render(chunk, ProducerFrames, StreamChannels);
+
+                lock (_lock)
+                {
+                    if (_renderer != renderer)
+                        return;
+
+                    WriteRingLocked(chunk, chunk.Length);
+                }
+            }
+        }
+        catch (Exception ex) when (!token.IsCancellationRequested)
+        {
+            lock (_lock)
+            {
+                if (_renderer == renderer)
+                {
+                    _producerFaulted = true;
+                    _renderer = null;
+                    _sourcePath = null;
+                    ResetRingLocked();
+                }
+            }
+
+            _log.Warning($"[ChipStream] Stream producer stopped path=\"{sourcePath}\": {ex.Message}");
+        }
+    }
+
+    private int ReadRingLocked(float[] destination, int frameCount, int outputChannels)
+    {
+        if (_ringBuffer.Length == 0 || _ringAvailableSamples <= 0)
+            return 0;
+
+        int sourceFrames = Math.Min(frameCount, _ringAvailableSamples / StreamChannels);
+        for (int frame = 0; frame < sourceFrames; frame++)
+        {
+            float left = PopRingSampleLocked();
+            float right = PopRingSampleLocked();
+            int destinationIndex = frame * outputChannels;
+
+            if (outputChannels == 1)
+            {
+                destination[destinationIndex] = (left + right) * 0.5f;
+            }
+            else
+            {
+                destination[destinationIndex] = left;
+                destination[destinationIndex + 1] = right;
+                for (int ch = 2; ch < outputChannels; ch++)
+                    destination[destinationIndex + ch] = 0;
+            }
+        }
+
+        return sourceFrames;
+    }
+
+    private void WriteRingLocked(float[] source, int sampleCount)
+    {
+        if (_ringBuffer.Length == 0)
+            return;
+
+        int overflow = _ringAvailableSamples + sampleCount - _ringBuffer.Length;
+        if (overflow > 0)
+        {
+            int drop = Math.Min(overflow, _ringAvailableSamples);
+            _ringReadIndex = (_ringReadIndex + drop) % _ringBuffer.Length;
+            _ringAvailableSamples -= drop;
+        }
+
+        for (int i = 0; i < sampleCount; i++)
+        {
+            _ringBuffer[_ringWriteIndex] = source[i];
+            _ringWriteIndex = (_ringWriteIndex + 1) % _ringBuffer.Length;
+            if (_ringAvailableSamples < _ringBuffer.Length)
+                _ringAvailableSamples++;
+        }
+    }
+
+    private float PopRingSampleLocked()
+    {
+        if (_ringAvailableSamples <= 0 || _ringBuffer.Length == 0)
+            return 0;
+
+        float sample = _ringBuffer[_ringReadIndex];
+        _ringReadIndex = (_ringReadIndex + 1) % _ringBuffer.Length;
+        _ringAvailableSamples--;
+        return sample;
+    }
+
+    private void ResetRingLocked()
+    {
+        _ringReadIndex = 0;
+        _ringWriteIndex = 0;
+        _ringAvailableSamples = 0;
+        if (_ringBuffer.Length > 0)
+            Array.Clear(_ringBuffer);
     }
 }
 

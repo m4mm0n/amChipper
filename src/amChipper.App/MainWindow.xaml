@@ -1111,7 +1111,7 @@
 
                 <Border Style="{StaticResource SettingsPanel}">
                   <StackPanel>
-                    <TextBlock Text="Files, backups and external tools" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="Files, backups and tracker tools" Style="{StaticResource SectionTitle}"/>
                     <Grid Margin="0,0,0,8">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150"/>
@@ -1138,14 +1138,14 @@
                       <TextBlock Text="User data folder" Style="{StaticResource SettingLabel}"/>
                       <TextBox Grid.Column="1" Text="{Binding UserDataFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
-                    <TextBlock Text="Browser search folders" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
+                    <TextBlock Text="Chiptune library folders" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
                     <ListBox ItemsSource="{Binding BrowserSearchFolders}" MinHeight="70" MaxHeight="110" Margin="0,4,0,8"/>
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <TextBlock Text="Script editor" Style="{StaticResource SettingLabel}"/>
+                      <TextBlock Text="External tracker tool" Style="{StaticResource SettingLabel}"/>
                       <TextBox Grid.Column="1" Text="{Binding ExternalToolPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
                   </StackPanel>

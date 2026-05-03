@@ -160,12 +160,35 @@ public sealed class MainViewModel : BaseViewModel
     /// <summary>
     /// User-configured browser search folders displayed in Settings.
     /// </summary>
-    public ObservableCollection<string> BrowserSearchFolders { get; } =
+    public ObservableCollection<string> BrowserSearchFolders { get; } = new(GetDefaultChiptuneSearchFolders());
+
+    private static string[] GetDefaultChiptuneSearchFolders() =>
     [
-        @"C:\VSTs\",
-        @"C:\Program Files\Common Files\VST3\",
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "amChipper")
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "Chiptunes"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "amChipper"),
+        Path.Combine(AppContext.BaseDirectory, "Examples"),
+        Path.Combine(AppContext.BaseDirectory, "NSF"),
+        Path.Combine(AppContext.BaseDirectory, "SID")
     ];
+
+    private static string[] NormalizeChiptuneSearchFolders(IEnumerable<string>? folders)
+    {
+        string[] cleaned = (folders ?? [])
+            .Where(static folder => !string.IsNullOrWhiteSpace(folder))
+            .Select(static folder => folder.Trim())
+            .Where(static folder => !IsLegacyPluginSearchFolder(folder))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return cleaned.Length > 0 ? cleaned : GetDefaultChiptuneSearchFolders();
+    }
+
+    private static bool IsLegacyPluginSearchFolder(string folder)
+    {
+        string normalized = folder.Trim().TrimEnd('\\', '/');
+        return normalized.Equals(@"C:\VSTs", StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(@"\Common Files\VST3", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Executes the this operation.
@@ -3059,7 +3082,7 @@ public sealed class MainViewModel : BaseViewModel
         FileBackupLocationMode = configuration.FileBackupLocationMode;
         UserDataFolder = configuration.UserDataFolder;
         BrowserSearchFolders.Clear();
-        foreach (string folder in configuration.BrowserSearchFolders is { Length: > 0 } ? configuration.BrowserSearchFolders : [@"C:\VSTs\", @"C:\Program Files\Common Files\VST3\", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "amChipper")])
+        foreach (string folder in NormalizeChiptuneSearchFolders(configuration.BrowserSearchFolders))
             BrowserSearchFolders.Add(folder);
         ExternalToolPath = configuration.ExternalToolPath;
         ThemeGuiScaling = configuration.ThemeGuiScaling;

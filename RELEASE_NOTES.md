@@ -1,21 +1,20 @@
-# amChipper v0.2.0.0-AMC20260503.1
+# amChipper v0.2.0.0-AMC20260503.2
 
-This release starts the v0.2 line. It replaces the rough NSF song-playback fallback with bounded live NSF streaming and expands Settings into a broader DAW-style configuration surface.
+This release hardens the v0.2 NSF live-playback path and cleans up the Settings surface so it stays focused on chiptune work instead of irrelevant VST-style defaults.
 
 ## Included
 
-- Added a live chip stream player in the audio engine for NSF source playback.
-- NSF song playback now streams from the NSF driver path instead of the imported tracker trace when the file is clean and playback scope is Song.
-- NSF pattern and piano-roll playback still use the editable trace path, so visible tracker/piano-roll material remains usable.
-- The chip stream path is bounded per audio chunk and defers expensive NSF play calls after repeated timeouts instead of letting one driver monopolize playback.
-- `nsf-batch` and `chip-batch` now validate NSF files through the same streaming path used by app playback.
-- Added a regression test proving NSF stream chunks render audibly within a bounded time budget.
-- Added advanced Settings sections for MIDI input/output, MIDI sync, audio mixer behavior, undo/history, startup behavior, file backups, browser folders, external tools, theme/scaling/animation controls, and project defaults.
-- Persisted the new advanced settings through the existing configuration save/load/import/export flow.
-- App build bumped to `v0.2.0.0-AMC20260503.1`.
-- SID and NSF plugin assemblies bumped to `v0.2.0.0`.
-- Ready2Release has been rebuilt, language packs regenerated, and the published executable smoke-tested.
+- NSF live stream rendering now runs on a background producer with a ring buffer.
+- The audio callback now drains buffered samples only, which keeps playback/UI responsive even when a difficult NSF driver stalls briefly.
+- NSF transport position and live visualizers continue to follow consumed audio frames.
+- Removed irrelevant VST/VST3 default search folders from Settings.
+- Replaced the folder defaults with chiptune/module library locations: Music/Chiptunes, Documents/amChipper, Examples, NSF, and SID.
+- Existing saved settings are migrated away from the old VST/VST3 defaults when loaded.
+- Renamed the affected settings to chiptune library / external tracker-tool wording.
+- App build bumped to `v0.2.0.0-AMC20260503.2`.
+- NSF plugin assembly bumped to `v0.2.1.0`.
+- Ready2Release has been rebuilt and the published executable smoke-tested.
 
 ## Notes
 
-SID/NSF emulation and chip-to-tracker reconstruction are still active development areas. This build specifically targets the remaining NSF UI-hang and bad-song-playback path by using live bounded streaming for full-song playback and keeping the trace sequencer as the editable fallback.
+SID/NSF emulation and chip-to-tracker reconstruction are still active development areas. This build targets the remaining NSF hang reports by isolating NSF emulation from the realtime audio callback; audio quality and exact hardware parity remain ongoing work.

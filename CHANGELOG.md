@@ -2,6 +2,21 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.0.0-AMC20260503.2 - 03.05.2026
+
+### NSF Buffered Playback and Chiptune-Focused Settings
+
+- Moved live chip-stream rendering off the realtime NAudio callback into a small background producer/ring-buffer path.
+- Changed NSF song playback failure behavior so an expensive NSF driver can cause a short stream underflow instead of locking the app or audio callback while the 6502 renderer catches up.
+- Kept playback position and visualizer timing advancing from consumed audio frames so NSF playback still drives transport, meters, and playlist/analyzer visuals.
+- Removed the irrelevant VST/VST3 default search paths from Settings.
+- Replaced the old browser-folder defaults with chiptune/module-focused locations for Music/Chiptunes, Documents/amChipper, Examples, NSF, and SID.
+- Added a settings migration filter that strips the old VST/VST3 paths from existing saved configurations instead of preserving the bad defaults forever.
+- Renamed the affected Settings labels from generic external/plugin wording to chiptune library and external tracker-tool wording.
+- Bumped the app informational version to `v0.2.0.0-AMC20260503.2`.
+- Bumped `amChipper.NsfPlayer.dll` to `v0.2.1.0`.
+- Rebuilt and smoke-tested the Release publish layout before publishing the GitHub release asset.
+
 ## v0.2.0.0-AMC20260503.1 - 03.05.2026
 
 ### Live NSF Streaming, Advanced DAW Settings, and 0.2 Release
