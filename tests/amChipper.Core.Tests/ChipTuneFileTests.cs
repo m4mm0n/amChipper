@@ -130,6 +130,17 @@ public sealed class ChipTuneFileTests
     }
 
     [Fact]
+    public void SidRendererSupportsCommonIllegalAlrAndLaxImmediate()
+    {
+        byte[] sid = CreateIllegalOpcodeSid();
+
+        float[] samples = InternalChipRenderer.RenderStereoFloat(sid, "illegal-opcodes.sid", seconds: 1, sampleRate: 8000);
+
+        Assert.All(samples, sample => Assert.True(float.IsFinite(sample)));
+        Assert.True(samples.Max(sample => Math.Abs(sample)) > 0.0001f);
+    }
+
+    [Fact]
     public void SidImportBuildsVisibleVoiceRowsFromRegisterWrites()
     {
         byte[] sid = CreateRelativePlaySid();
@@ -397,6 +408,49 @@ public sealed class ChipTuneFileTests
             0x60
         ];
         program.CopyTo(sid, 0x7E);
+        return sid;
+    }
+
+    private static byte[] CreateIllegalOpcodeSid()
+    {
+        byte[] sid = new byte[0x180];
+        Encoding.ASCII.GetBytes("PSID").CopyTo(sid, 0);
+        sid[0x04] = 0;
+        sid[0x05] = 2;
+        sid[0x06] = 0;
+        sid[0x07] = 0x7C;
+        sid[0x0A] = 0x10;
+        sid[0x0B] = 0x00;
+        sid[0x0C] = 0x10;
+        sid[0x0D] = 0x20;
+        sid[0x0E] = 0;
+        sid[0x0F] = 1;
+        sid[0x10] = 0;
+        sid[0x11] = 1;
+        WriteFixed(sid, 0x16, "Illegal Opcodes");
+        sid[0x7C] = 0;
+        sid[0x7D] = 0x10;
+
+        byte[] init =
+        [
+            0xA9, 0xFF,
+            0x4B, 0x0F,
+            0xAB, 0x08,
+            0x60
+        ];
+        byte[] play =
+        [
+            0xA9, 0x34, 0x8D, 0x00, 0xD4,
+            0xA9, 0x12, 0x8D, 0x01, 0xD4,
+            0xA9, 0xF0, 0x8D, 0x05, 0xD4,
+            0xA9, 0xF0, 0x8D, 0x06, 0xD4,
+            0xA9, 0x0F, 0x8D, 0x18, 0xD4,
+            0xA9, 0x41, 0x8D, 0x04, 0xD4,
+            0x60
+        ];
+
+        init.CopyTo(sid, 0x7E);
+        play.CopyTo(sid, 0x9E);
         return sid;
     }
 

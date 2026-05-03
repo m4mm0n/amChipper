@@ -41,6 +41,7 @@ internal static class Program
                 "self-test" => RunSelfTest(options),
                 "sid-xm-test" => RunSidXmTest(options),
                 "nsf-batch" => RunNsfBatch(options),
+                "sid-batch" => RunSidBatch(options),
                 "chip-batch" => RunChipBatch(options),
                 "lang-export" => RunLangExport(options),
                 "lang-check" => RunLangCheck(options),
@@ -208,13 +209,14 @@ internal static class Program
                     Path.GetExtension(path).Equals(".nsfe", StringComparison.OrdinalIgnoreCase))
             : [root];
 
-        string[] files = candidates.Take(Math.Max(options.Limit, 1)).ToArray();
+        string[] files = candidates.Skip(Math.Max(options.Skip, 0)).Take(Math.Max(options.Limit, 1)).ToArray();
         int ok = 0;
         int silent = 0;
         int failed = 0;
         var lines = new List<string>();
         foreach (string file in files)
         {
+            var fileWatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 byte[] data = File.ReadAllBytes(file);
@@ -278,7 +280,7 @@ internal static class Program
                 .Where(path => extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
             : [root];
 
-        string[] files = candidates.Take(Math.Max(options.Limit, 1)).ToArray();
+        string[] files = candidates.Skip(Math.Max(options.Skip, 0)).Take(Math.Max(options.Limit, 1)).ToArray();
         int sid = 0;
         int nsf = 0;
         int ok = 0;
@@ -288,6 +290,7 @@ internal static class Program
 
         foreach (string file in files)
         {
+            var fileWatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 byte[] data = File.ReadAllBytes(file);
@@ -317,6 +320,61 @@ internal static class Program
 
         PrintHeader("amChipper chip batch diagnostic");
         PrintPanel("SUMMARY", [$"files {files.Length}", $"sid {sid}", $"nsf {nsf}", $"audible {ok}", $"silent {silent}", $"failed {failed}", $"seconds/file {options.Seconds}"]);
+        foreach (var chunk in lines.Chunk(18))
+            PrintPanel("FILES", chunk.ToArray());
+        return failed == 0 && ok > 0 ? 0 : 2;
+    }
+
+    /// <summary>
+    /// Executes a bounded SID render diagnostic over a file tree without tracker-trace import overhead.
+    /// </summary>
+    private static int RunSidBatch(CliOptions options)
+    {
+        string root = string.IsNullOrWhiteSpace(options.InputPath) ? "SID" : options.InputPath;
+        string[] extensions = [".sid", ".psid", ".rsid"];
+        IEnumerable<string> candidates = Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+                .Where(path => extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            : [root];
+
+        string[] files = candidates.Skip(Math.Max(options.Skip, 0)).Take(Math.Max(options.Limit, 1)).ToArray();
+        int psid = 0;
+        int rsid = 0;
+        int ok = 0;
+        int silent = 0;
+        int failed = 0;
+        var lines = new List<string>();
+        int sampleRate = Math.Clamp(options.SampleRate, 8000, 192000);
+
+        foreach (string file in files)
+        {
+            var fileWatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                byte[] data = File.ReadAllBytes(file);
+                var metadata = ChipTuneFile.ReadMetadata(data, file);
+                if (metadata.Format != ModuleFormat.SID)
+                    throw new InvalidDataException($"Expected SID data, got {metadata.Format}.");
+                if (metadata.Type.Equals("RSID", StringComparison.OrdinalIgnoreCase)) rsid++; else psid++;
+
+                float[] pcm = InternalChipRenderer.RenderStereoFloat(data, file, options.Seconds, sampleRate);
+                var stats = Stats(pcm, Math.Min(pcm.Length / 2, options.Seconds * sampleRate));
+                bool audible = stats.Peak > 0.0005f && stats.Rms > 0.00001;
+                if (audible) ok++; else silent++;
+
+                fileWatch.Stop();
+                lines.Add($"{(audible ? "OK" : "SILENT"),-6} {metadata.Type,-4} {fileWatch.ElapsedMilliseconds,5}ms peak {stats.Peak:0.0000} rms {stats.Rms:0.000000} songs {metadata.SongCount,2} start {metadata.StartSong,2} load ${metadata.LoadAddress:X4} init ${metadata.InitAddress:X4} play ${metadata.PlayAddress:X4} {metadata.Clock}/{metadata.SidModel} {file}");
+            }
+            catch (Exception ex)
+            {
+                fileWatch.Stop();
+                failed++;
+                lines.Add($"FAIL   {fileWatch.ElapsedMilliseconds,5}ms {file} :: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        PrintHeader("amChipper SID batch diagnostic");
+        PrintPanel("SUMMARY", [$"files {files.Length}", $"skip {Math.Max(options.Skip, 0)}", $"psid {psid}", $"rsid {rsid}", $"audible {ok}", $"silent {silent}", $"failed {failed}", $"seconds/file {options.Seconds}", $"sample-rate {sampleRate}"]);
         foreach (var chunk in lines.Chunk(18))
             PrintPanel("FILES", chunk.ToArray());
         return failed == 0 && ok > 0 ? 0 : 2;
@@ -659,6 +717,8 @@ internal static class Program
         for (int i = 0; i < limit; i++)
         {
             float value = Math.Abs(buffer[i]);
+            if (!float.IsFinite(value))
+                continue;
             peak = Math.Max(peak, value);
             sumSquares += value * value;
         }
@@ -817,6 +877,7 @@ internal static class Program
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- self-test --input \"Outlive no2.xm\" --pattern 0 --channel 1");
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- sid-xm-test --input \"c64\\Android\\Boppy.sid\" --export \"%TEMP%\\boppy.xm\"");
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- nsf-batch --input \"NSF\" --limit 40 --seconds 3");
+        System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- sid-batch --input \"C:\\Music\\HVSC\" --limit 1000 --skip 0 --seconds 1 --sample-rate 8000");
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- chip-batch --input \"C:\\Music\\Chiptunes\" --limit 80 --seconds 3");
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- lang-export --input \"Ready2Release\\lang\"");
         System.Console.WriteLine("  dotnet run --project src/amChipper.Console -c Release -p:Platform=x64 -- lang-check --input \"Ready2Release\\lang\"");
@@ -900,8 +961,10 @@ internal sealed record CliOptions(
     byte Pitch,
     int DurationRows,
     int Limit,
+    int Skip,
     int Seconds,
     string Language,
+    int SampleRate,
     bool Help)
 {
     /// <summary>
@@ -918,10 +981,12 @@ internal sealed record CliOptions(
         byte pitch = (byte)Math.Clamp(GetInt(args, "--pitch", 64), 1, 127);
         int duration = GetInt(args, "--duration", 4);
         int limit = GetInt(args, "--limit", 40);
+        int skip = GetInt(args, "--skip", 0);
         int seconds = Math.Clamp(GetInt(args, "--seconds", 3), 1, 30);
         string language = Get(args, "--language", string.Empty);
+        int sampleRate = Math.Clamp(GetInt(args, "--sample-rate", 44100), 8000, 192000);
         bool help = args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Contains("-h", StringComparer.OrdinalIgnoreCase);
-        return new CliOptions(command, input, export, pattern, channel, row, pitch, duration, limit, seconds, language, help);
+        return new CliOptions(command, input, export, pattern, channel, row, pitch, duration, limit, skip, seconds, language, sampleRate, help);
     }
 
     /// <summary>

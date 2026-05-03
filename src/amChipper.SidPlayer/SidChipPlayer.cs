@@ -8,7 +8,7 @@ namespace amChipper.SidPlayer;
 /// </summary>
 public sealed class SidChipPlayer
 {
-    public const string PluginVersion = "v0.2.0.0";
+    public const string PluginVersion = "v0.2.3.0";
 
     public ChipTuneMetadata ReadMetadata(byte[] sidData, string sourcePath) =>
         ChipTuneFile.ReadMetadata(sidData, sourcePath);

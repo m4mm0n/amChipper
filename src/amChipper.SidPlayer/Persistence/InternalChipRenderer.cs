@@ -2063,7 +2063,13 @@ public static class InternalChipRenderer
     /// <summary>
     /// Executes the SoftClip operation.
     /// </summary>
-    private static float SoftClip(double value) => (float)Math.Tanh(value * 1.35);
+    private static float SoftClip(double value)
+    {
+        if (!double.IsFinite(value))
+            return 0f;
+
+        return (float)Math.Tanh(Math.Clamp(value, -32.0, 32.0) * 1.35);
+    }
 
     /// <summary>
     /// Executes the WriteStereoFloatAsPcm16Wav operation.
@@ -2241,6 +2247,12 @@ public static class InternalChipRenderer
     /// </summary>
     private sealed class SidRuntime
     {
+        private const int InitInstructionBudget = 120_000;
+        private const int InitMillisecondsBudget = 48;
+        private const int AnalysisPlayInstructionBudget = 120_000;
+        private const int AnalysisPlayMillisecondsBudget = 2;
+        private const int RenderPlayInstructionBudget = 90_000;
+        private const int RenderPlayMillisecondsBudget = 1;
         /// <summary>
         /// Stores or exposes _program.
         /// </summary>
@@ -2277,7 +2289,7 @@ public static class InternalChipRenderer
         public static float[] Render(SidProgram program, ChipTuneMetadata metadata, int seconds, int sampleRate)
         {
             var runtime = new SidRuntime(program);
-            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, 200000, maxMilliseconds: 120, critical: true);
+            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, InitInstructionBudget, maxMilliseconds: InitMillisecondsBudget, critical: true);
             program.ResolveIrqPlayAddress();
             if (program.PlayAddress == 0)
                 return RenderSidFallbackProgram(program.Memory, seconds, sampleRate);
@@ -2318,12 +2330,12 @@ public static class InternalChipRenderer
         public static (int SidWrites, int VoiceWrites, byte Volume) Analyze(SidProgram program, int frames)
         {
             var runtime = new SidRuntime(program);
-            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, 200000, maxMilliseconds: 120, critical: true);
+            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, InitInstructionBudget, maxMilliseconds: InitMillisecondsBudget, critical: true);
             program.ResolveIrqPlayAddress();
             for (int i = 0; i < frames; i++)
             {
                 runtime._io.BeginFrame();
-                runtime.Call(program.PlayAddress, 0, 240000, maxMilliseconds: 6);
+                runtime.Call(program.PlayAddress, 0, AnalysisPlayInstructionBudget, maxMilliseconds: AnalysisPlayMillisecondsBudget);
             }
 
             return (runtime._sid.WriteCount, runtime._sid.VoiceWriteCount, runtime._sid.Volume);
@@ -2332,13 +2344,13 @@ public static class InternalChipRenderer
         public static (ushort LoadAddress, ushort InitAddress, ushort PlayAddress, ushort IrqVector, int SidWrites) AnalyzeExecution(SidProgram program, int frames)
         {
             var runtime = new SidRuntime(program);
-            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, 200000, maxMilliseconds: 120, critical: true);
+            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, InitInstructionBudget, maxMilliseconds: InitMillisecondsBudget, critical: true);
             ushort irq = (ushort)(program.Memory[0x0314] | (program.Memory[0x0315] << 8));
             program.ResolveIrqPlayAddress();
             for (int i = 0; i < frames; i++)
             {
                 runtime._io.BeginFrame();
-                runtime.Call(program.PlayAddress, 0, 240000, maxMilliseconds: 6);
+                runtime.Call(program.PlayAddress, 0, AnalysisPlayInstructionBudget, maxMilliseconds: AnalysisPlayMillisecondsBudget);
             }
 
             return (program.LoadAddress, program.InitAddress, program.PlayAddress, irq, runtime._sid.WriteCount);
@@ -2350,12 +2362,12 @@ public static class InternalChipRenderer
         public static byte[] DumpRegisters(SidProgram program, int frames)
         {
             var runtime = new SidRuntime(program);
-            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, 200000, maxMilliseconds: 120, critical: true);
+            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, InitInstructionBudget, maxMilliseconds: InitMillisecondsBudget, critical: true);
             program.ResolveIrqPlayAddress();
             for (int i = 0; i < frames; i++)
             {
                 runtime._io.BeginFrame();
-                runtime.Call(program.PlayAddress, 0, 240000, maxMilliseconds: 6);
+                runtime.Call(program.PlayAddress, 0, AnalysisPlayInstructionBudget, maxMilliseconds: AnalysisPlayMillisecondsBudget);
             }
             return runtime._sid.RegisterSnapshot();
         }
@@ -2366,7 +2378,7 @@ public static class InternalChipRenderer
         public static IReadOnlyList<SidVoiceRow> InspectVoiceRows(SidProgram program, int frames)
         {
             var runtime = new SidRuntime(program);
-            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, 200000, maxMilliseconds: 120, critical: true);
+            runtime.Call(program.InitAddress, program.InitialAccumulatorValue, InitInstructionBudget, maxMilliseconds: InitMillisecondsBudget, critical: true);
             program.ResolveIrqPlayAddress();
             if (program.PlayAddress == 0)
                 return [];
@@ -2376,7 +2388,7 @@ public static class InternalChipRenderer
             for (int row = 0; row < frames; row++)
             {
                 runtime._io.BeginFrame();
-                runtime.Call(program.PlayAddress, 0, 240000, maxMilliseconds: 6);
+                runtime.Call(program.PlayAddress, 0, AnalysisPlayInstructionBudget, maxMilliseconds: AnalysisPlayMillisecondsBudget);
                 byte[] regs = runtime._sid.RegisterSnapshot();
                 byte masterVolume = (byte)Math.Clamp((regs[0x18] & 0x0F) * 4, 0, 64);
                 ushort filterCutoff = (ushort)(((regs[0x16] << 3) | (regs[0x15] & 0x07)) & 0x07FF);
@@ -2466,6 +2478,11 @@ public static class InternalChipRenderer
         {
             if (address == 0)
                 return;
+            if (!critical && _badFrames >= 12)
+            {
+                _badFrames = Math.Min(_badFrames + 1, 32);
+                return;
+            }
 
             try
             {
@@ -2492,9 +2509,9 @@ public static class InternalChipRenderer
                 return;
             }
 
-            Call(address, 0, 240000, maxMilliseconds: 4);
-            if (_badFrames >= 8)
-                _deferredPlayFrames = Math.Min(_deferredPlayFrames + 1, 3);
+            Call(address, 0, RenderPlayInstructionBudget, maxMilliseconds: RenderPlayMillisecondsBudget);
+            if (_badFrames >= 2)
+                _deferredPlayFrames = Math.Min(_deferredPlayFrames + 8, 24);
         }
 
         /// <summary>
@@ -2815,15 +2832,29 @@ public static class InternalChipRenderer
 
         private static double MasterDcBlock(double input, ref double previousInput, ref double previousOutput)
         {
+            if (!double.IsFinite(input))
+                input = 0;
+            if (!double.IsFinite(previousInput))
+                previousInput = 0;
+            if (!double.IsFinite(previousOutput))
+                previousOutput = 0;
+
             double output = input - previousInput + 0.997 * previousOutput;
             previousInput = input;
-            previousOutput = output;
+            previousOutput = double.IsFinite(output) ? output : 0;
             return output;
         }
 
         private static double MasterSmooth(double input, ref double previous)
         {
+            if (!double.IsFinite(input))
+                input = 0;
+            if (!double.IsFinite(previous))
+                previous = 0;
+
             previous += (input - previous) * 0.74;
+            if (!double.IsFinite(previous))
+                previous = 0;
             return previous;
         }
 
@@ -2832,6 +2863,13 @@ public static class InternalChipRenderer
         /// </summary>
         private double ApplyFilter(double input, int sampleRate)
         {
+            if (!double.IsFinite(input))
+                return 0;
+            if (!double.IsFinite(_filterLow))
+                _filterLow = 0;
+            if (!double.IsFinite(_filterBand))
+                _filterBand = 0;
+
             double normalizedCutoff = Math.Clamp(_filterCutoff / 2047.0, 0.001, 1.0);
             double cutoff = is8580
                 ? 45.0 + normalizedCutoff * normalizedCutoff * 12500.0
@@ -2843,6 +2881,13 @@ public static class InternalChipRenderer
             _filterLow += f * _filterBand;
             double high = input - _filterLow - q * _filterBand;
             _filterBand += f * high;
+            if (!double.IsFinite(_filterLow) || !double.IsFinite(_filterBand))
+            {
+                _filterLow = 0;
+                _filterBand = 0;
+                high = 0;
+            }
+
             double notch = high + _filterLow;
 
             double output = 0;
@@ -3022,9 +3067,16 @@ public static class InternalChipRenderer
 
             private double DcBlock(double input)
             {
+                if (!double.IsFinite(input))
+                    input = 0;
+                if (!double.IsFinite(_dcInput))
+                    _dcInput = 0;
+                if (!double.IsFinite(_dcOutput))
+                    _dcOutput = 0;
+
                 double output = input - _dcInput + 0.995 * _dcOutput;
                 _dcInput = input;
-                _dcOutput = output;
+                _dcOutput = double.IsFinite(output) ? output : 0;
                 return output;
             }
 
@@ -3362,7 +3414,9 @@ public static class InternalChipRenderer
                 case 0x73: Rra(IndY()); break;
                 case 0x0B:
                 case 0x2B: Anc(Immediate()); break;
+                case 0x4B: Alr(Immediate()); break;
                 case 0x8B: A = Load((byte)(_x & Immediate())); break;
+                case 0xAB: A = _x = Load(Immediate()); break;
                 case 0xBB: A = _x = _sp = Load((byte)(Read((ushort)(Abs() + _y)) & _sp)); break;
                 case 0xCB: Axs(Immediate()); break;
                 case 0x6B: Arr(Immediate()); break;
@@ -3635,6 +3689,14 @@ public static class InternalChipRenderer
         {
             A = Load((byte)(A & value));
             SetFlag(Carry, (A & 0x80) != 0);
+        }
+        /// <summary>
+        /// Executes the Alr operation.
+        /// </summary>
+        private void Alr(byte value)
+        {
+            A = (byte)(A & value);
+            A = Lsr(A);
         }
         /// <summary>
         /// Executes the Axs operation.

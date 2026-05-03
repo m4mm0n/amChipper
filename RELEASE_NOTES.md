@@ -1,18 +1,21 @@
-# amChipper v0.2.2.0-AMC20260503.5
+# amChipper v0.2.3.0-AMC20260503.6
 
-This release finishes the NSF corpus hardening pass by validating every `.nsf`/`.nsfe` file found in the local `_EVERYTHING` library and fixing the remaining live-playback rejection case.
+This release applies the same corpus-driven hardening to SID playback that the previous build applied to NSF playback.
 
 ## Included
 
-- Fixed bank-switched NSF files that declare `Load=$0000` while relying on the initial bank table for `$8000-$FFFF` mapping.
-- Kept invalid non-banked zero-load headers rejected instead of weakening general NSF validation.
-- Added regression coverage for the banked zero-load streaming path.
-- Validated the live NSF batch path against all 4,682 `.nsf`/`.nsfe` files found under `C:\Users\admin\OneDrive\Dokumenter\My FTPRush Downloads\_EVERYTHING`.
-- Corpus result after the fix: 4,682 audible, 0 silent, 0 failed.
-- App build bumped to `v0.2.2.0-AMC20260503.5`.
-- SID plugin assembly bumped to `v0.2.2.0` because the shared chip renderer lives there.
-- NSF plugin assembly bumped to `v0.2.3.0`.
+- Added a dedicated `sid-batch` diagnostic for large SID corpus validation without tracker-trace import overhead.
+- Added `--sample-rate` and `--skip` support to batch diagnostics so large chip libraries can be validated in deterministic chunks.
+- Added 6510 support for common unofficial SID-driver opcodes `$4B`/ALR and `$AB`/LAX immediate.
+- Hardened the SID synth/filter/DC-block path so unstable filter states cannot leak `NaN` samples into playback.
+- Tightened bad-frame throttling so pathological RSID play routines are deferred instead of burning the render loop.
+- Inventoried 118,092 SID-like files under `C:\Users\admin\OneDrive\Dokumenter\My FTPRush Downloads\_EVERYTHING`.
+- Post-fix corpus validation was stopped at 54,000 files by request after the remaining work became time-heavy.
+- Validated result before stopping: 54,000 audible, 0 silent, 0 failed, 0 NaN outputs.
+- App build bumped to `v0.2.3.0-AMC20260503.6`.
+- SID plugin assembly and facade bumped to `v0.2.3.0`.
+- NSF plugin assembly remains `v0.2.3.0`.
 
 ## Notes
 
-No `.nsfe` files were present in the scanned local corpus, but the existing NSFE normalization path remains covered by tests. NSF chip-to-tracker reconstruction is still an approximation of driver state; this pass targets live NSF playback/import stability across the available file corpus.
+SID chip-to-tracker reconstruction is still an approximation of driver state; this pass targets playback/render stability and finite audible output. The remaining unscanned SID range is not claimed as fully validated in this build.

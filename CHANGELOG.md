@@ -2,6 +2,21 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.3.0-AMC20260503.6 - 03.05.2026
+
+### Full SID Corpus Hardening
+
+- Scanned `C:\Users\admin\OneDrive\Dokumenter\My FTPRush Downloads\_EVERYTHING` and found 118,092 SID-like files by extension.
+- Added a dedicated `sid-batch` diagnostic so large SID libraries can be rendered without paying tracker-trace import cost for every file.
+- Added `--sample-rate` and `--skip` batch options to make full-corpus validation deterministic and chunkable.
+- Fixed real SID driver failures caused by unsupported unofficial 6510 `$4B`/ALR and `$AB`/LAX-immediate opcodes.
+- Hardened SID filter, DC-block, smoothing, and soft-clip paths against non-finite audio state.
+- Tightened pathological SID play-call throttling so repeated bad frames are deferred instead of burning the render loop.
+- Re-ran the corrected post-fix SID corpus scan until stopped by request: 54,000 audible, 0 silent, 0 failed, 0 NaN outputs.
+- The remaining SID range was not claimed as fully validated because continuing the full scan would have taken too long.
+- Bumped the app informational version to `v0.2.3.0-AMC20260503.6`.
+- Bumped `amChipper.SidPlayer.dll` and the SID plugin facade to `v0.2.3.0`.
+
 ## v0.2.2.0-AMC20260503.5 - 03.05.2026
 
 ### Full NSF Corpus Hardening
