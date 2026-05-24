@@ -113,11 +113,36 @@ public static class BugReportBuilder
         if (string.IsNullOrWhiteSpace(logFilePath) || !File.Exists(logFilePath))
             return string.Empty;
 
-        string text = File.ReadAllText(logFilePath);
         int length = Math.Clamp(maxLogTailChars, 0, 64_000);
-        if (length == 0 || text.Length <= length)
-            return text;
+        if (length == 0)
+            return string.Empty;
 
-        return text[^length..];
+        try
+        {
+            using var stream = new FileStream(logFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            string text = reader.ReadToEnd();
+            if (text.Length <= length)
+                return text;
+
+            return text[^length..];
+        }
+        catch (IOException ex)
+        {
+            return BuildUnreadableLogMessage(logFilePath, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return BuildUnreadableLogMessage(logFilePath, ex);
+        }
+    }
+
+    private static string BuildUnreadableLogMessage(string logFilePath, Exception ex)
+    {
+        string reason = ex.Message;
+        if (string.IsNullOrWhiteSpace(reason))
+            reason = ex.GetType().Name;
+
+        return $"The log file could not be read because it is locked or unavailable: {logFilePath}{Environment.NewLine}{reason}";
     }
 }

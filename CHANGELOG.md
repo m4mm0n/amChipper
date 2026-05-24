@@ -2,6 +2,15 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.4.0-AMC20260524.2 - 24.05.2026
+
+### Bug Report Hotfix
+
+- Fixed **Help -> Report Bug...** so the dialog still opens when the live `amChipper.log` file is locked by the running logger.
+- Changed log capture to use a shared read path when possible and a clear "log file could not be read" note when the file is locked or unavailable.
+- Added regression coverage for locked log files so support reporting cannot crash while trying to collect support context.
+- Bumped the app informational version to `v0.2.4.0-AMC20260524.2`.
+
 ## v0.2.4.0-AMC20260524.1 - 24.05.2026
 
 ### Bug Reporting, QuickLog 2.4, and Release Packaging

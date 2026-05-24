@@ -98,4 +98,35 @@ public sealed class BugReportBuilderTests
             File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void CreateFromEnvironmentDoesNotThrowWhenLogFileIsLocked()
+    {
+        string tempFile = Path.Combine(Path.GetTempPath(), $"amchipper-bug-report-locked-{Guid.NewGuid():N}.log");
+        File.WriteAllText(tempFile, "locked log content");
+
+        try
+        {
+            using var locked = new FileStream(tempFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+            var draft = BugReportBuilder.CreateFromEnvironment(
+                "amChipper",
+                "v0.2.4.0-AMC20260524.2",
+                "details",
+                "steps",
+                "expected",
+                "actual",
+                "status",
+                "project.amc",
+                tempFile,
+                maxLogTailChars: 16);
+
+            Assert.Contains("could not be read", draft.LogTail, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("locked", draft.LogTail, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
