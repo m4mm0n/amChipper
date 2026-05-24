@@ -17,6 +17,7 @@ using amChipper.App.Commands;
 using amChipper.App.Services;
 using amChipper.App.Views;
 using amChipper.Audio.Engine;
+using amChipper.Core.Diagnostics;
 using amChipper.Core.Models;
 using amChipper.Core.Persistence;
 using NAudio.Wave;
@@ -1880,6 +1881,10 @@ public sealed class MainViewModel : BaseViewModel
     /// Stores or exposes ShowAboutCommand.
     /// </summary>
     public ICommand ShowAboutCommand { get; }
+    /// <summary>
+    /// Stores or exposes ReportBugCommand.
+    /// </summary>
+    public ICommand ReportBugCommand { get; }
 
     /// <summary>
     /// Stores or exposes UndoCommand.
@@ -1953,6 +1958,7 @@ public sealed class MainViewModel : BaseViewModel
         ShowTipCommand = new RelayCommand(_ => ShowTipWindow(startup: false));
         ShowHelpCommand = new RelayCommand(_ => ShowHelpWindow());
         ShowAboutCommand = new RelayCommand(_ => ShowAboutWindow());
+        ReportBugCommand = new RelayCommand(_ => ShowBugReportWindow());
         UndoCommand = new RelayCommand(_ => Undo(), _ => CanUndo);
         RedoCommand = new RelayCommand(_ => Redo(), _ => CanRedo);
 
@@ -2850,6 +2856,162 @@ public sealed class MainViewModel : BaseViewModel
             StatusText = $"Could not open log folder: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// Opens the bug-report composer and prepares an owner-addressed support email.
+    /// </summary>
+    private void ShowBugReportWindow()
+    {
+        string version = NormalizeDisplayVersion(typeof(MainViewModel).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "unknown");
+
+        var details = CreateBugReportTextBox(96);
+        var steps = CreateBugReportTextBox(88);
+        var expected = CreateBugReportTextBox(64);
+        var actual = CreateBugReportTextBox(64);
+        var preview = new TextBox
+        {
+            MinHeight = 180,
+            AcceptsReturn = true,
+            IsReadOnly = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 11
+        };
+
+        BugReportDraft CreateDraft() => BugReportBuilder.CreateFromEnvironment(
+            "amChipper",
+            version,
+            details.Text,
+            steps.Text,
+            expected.Text,
+            actual.Text,
+            StatusText,
+            FilePath,
+            AppLogger.LogFilePath);
+
+        void RefreshPreview() => preview.Text = BugReportBuilder.BuildBody(CreateDraft());
+
+        details.TextChanged += (_, _) => RefreshPreview();
+        steps.TextChanged += (_, _) => RefreshPreview();
+        expected.TextChanged += (_, _) => RefreshPreview();
+        actual.TextChanged += (_, _) => RefreshPreview();
+
+        var emailButton = new Button { Content = L("SendBugReport"), MinWidth = 118, Margin = new Thickness(0, 0, 8, 0) };
+        var copyButton = new Button { Content = L("CopyBugReport"), MinWidth = 112, Margin = new Thickness(0, 0, 8, 0) };
+        var logsButton = new Button { Content = L("OpenFolder"), MinWidth = 96, Margin = new Thickness(0, 0, 8, 0) };
+        var closeButton = new Button { Content = L("Close"), IsCancel = true, MinWidth = 86 };
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+        buttons.Children.Add(emailButton);
+        buttons.Children.Add(copyButton);
+        buttons.Children.Add(logsButton);
+        buttons.Children.Add(closeButton);
+
+        var root = new StackPanel { Margin = new Thickness(16) };
+        root.Children.Add(new TextBlock
+        {
+            Text = FormatL("BugReportRecipient", BugReportBuilder.DefaultRecipient),
+            Foreground = Application.Current?.TryFindResource("TextSecondary") as Brush ?? Brushes.Gray,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 10)
+        });
+        AddBugReportField(root, L("BugReportDetails"), details);
+        AddBugReportField(root, L("BugReportSteps"), steps);
+        AddBugReportField(root, L("BugReportExpected"), expected);
+        AddBugReportField(root, L("BugReportActual"), actual);
+        root.Children.Add(new TextBlock
+        {
+            Text = L("BugReportPreview"),
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 8, 0, 4)
+        });
+        root.Children.Add(preview);
+        root.Children.Add(buttons);
+
+        var scroll = new ScrollViewer
+        {
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
+
+        var window = new Window
+        {
+            Title = L("BugReportWindowTitle"),
+            Width = 760,
+            Height = 760,
+            MinWidth = 560,
+            MinHeight = 560,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Application.Current?.MainWindow,
+            Content = scroll,
+            Background = Application.Current?.TryFindResource("BgPanel") as Brush ?? Brushes.Black
+        };
+        WindowChromeTheme.Attach(window);
+
+        emailButton.Click += (_, _) =>
+        {
+            var draft = CreateDraft();
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = BugReportBuilder.BuildMailtoUri(draft).OriginalString,
+                    UseShellExecute = true
+                });
+                StatusText = FormatL("BugReportMailOpened", BugReportBuilder.DefaultRecipient);
+                AppLogger.Info($"[BugReport] Mail client opened recipient={BugReportBuilder.DefaultRecipient}");
+            }
+            catch (Exception ex)
+            {
+                Clipboard.SetText(BugReportBuilder.BuildBody(draft));
+                StatusText = L("BugReportMailFailed");
+                AppLogger.Error(ex, "[BugReport] Failed to open mail client; copied report to clipboard.");
+                MessageBox.Show(
+                    L("BugReportMailFailed"),
+                    L("BugReportWindowTitle"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        };
+        copyButton.Click += (_, _) =>
+        {
+            Clipboard.SetText(BugReportBuilder.BuildBody(CreateDraft()));
+            StatusText = L("BugReportCopied");
+        };
+        logsButton.Click += (_, _) => OpenLogFolder();
+        closeButton.Click += (_, _) => window.Close();
+
+        RefreshPreview();
+        window.ShowDialog();
+    }
+
+    private static void AddBugReportField(Panel root, string label, TextBox textBox)
+    {
+        root.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 4, 0, 4)
+        });
+        root.Children.Add(textBox);
+    }
+
+    private static TextBox CreateBugReportTextBox(double minHeight) => new()
+    {
+        MinHeight = minHeight,
+        Margin = new Thickness(0, 0, 0, 8),
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.Wrap,
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+    };
 
     /// <summary>
     /// Executes the SaveConfiguration operation.

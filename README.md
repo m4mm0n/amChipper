@@ -18,6 +18,7 @@ Some emulator/conversion paths are still under active development. Exact tracker
 - .NET 10 SDK.
 - Visual Studio 2026 or a recent Visual Studio build that supports .NET 10 WPF projects.
 - Optional: libopenmpt native runtime for tracker playback where the project expects it.
+- Optional Linux compatibility package: Wine 9+ plus the Windows x64 .NET Desktop Runtime 10.x installed inside the Wine prefix.
 
 ## Build
 
@@ -35,9 +36,26 @@ dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --
 
 The app intentionally moves dependency DLLs into `libs/` during build/publish and normalizes the runtime dependency map for that layout.
 
+## Bug reports
+
+Use **Help -> Report Bug...** to prepare a support email to `admin@darkmaster.no`. The report includes the app version, current status/file context, machine/runtime details, and a tail of the current amChipper log. If the default mail client cannot open, the report is copied to the clipboard.
+
+## Linux WPF compatibility
+
+WPF remains a Windows desktop UI stack under .NET, so amChipper does not have a native Linux WPF runtime. The Linux release package keeps the current WPF app usable on Linux by running the Windows x64 build through Wine.
+
+The Linux Wine package is named `amChipper-<tag>-linux-x64-wine.zip`. Unzip it on Linux, install Wine and the Windows x64 .NET Desktop Runtime 10.x into the same Wine prefix, then run:
+
+```bash
+chmod +x run-amChipper.sh
+./run-amChipper.sh
+```
+
+A true native Linux UI would require a future port to a cross-platform desktop stack such as Avalonia while preserving the tracker/audio core.
+
 ## Release packaging
 
-The release artifact is the complete `Ready2Release` directory zipped as `amChipper-<tag>-win-x64.zip`. The GitHub release workflow can be run from a `v*` tag or manually from **Actions -> Release** with the tag input. It builds, tests, publishes, packages, uploads the artifact, and normalizes any existing release for the same tag so it is visible as a normal GitHub Release rather than a hidden draft/prerelease.
+Release artifacts are built as `amChipper-<tag>-win-x64.zip` and `amChipper-<tag>-linux-x64-wine.zip`. The GitHub release workflow can be run from a `v*` tag or manually from **Actions -> Release** with the tag input. It builds, tests, publishes, packages, uploads both artifacts, and normalizes any existing release for the same tag so it is visible as a normal GitHub Release rather than a hidden draft/prerelease.
 
 For a local package from an already-published folder:
 

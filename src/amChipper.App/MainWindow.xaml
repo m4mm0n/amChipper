@@ -219,6 +219,9 @@
         <MenuItem Header="{Binding [TipOfTheDay]}" Command="{Binding ShowTipCommand}">
           <MenuItem.Icon><TextBlock Text="!" FontWeight="Bold"/></MenuItem.Icon>
         </MenuItem>
+        <MenuItem Header="{Binding [ReportBug]}" Command="{Binding ReportBugCommand}">
+          <MenuItem.Icon><TextBlock Text="!" FontWeight="Bold"/></MenuItem.Icon>
+        </MenuItem>
         <Separator/>
         <MenuItem Header="{Binding [About]}" Command="{Binding ShowAboutCommand}">
           <MenuItem.Icon><TextBlock Text="i" FontWeight="Bold"/></MenuItem.Icon>

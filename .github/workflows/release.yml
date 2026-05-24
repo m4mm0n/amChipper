@@ -9,13 +9,14 @@ on:
       tag:
         description: Release tag to package
         required: true
-        default: v0.1.0.0-AMC20260502.6
+        default: v0.2.4.0-AMC20260524.1
 
 permissions:
   contents: write
 
 jobs:
   release:
+    name: Build Windows and Linux Wine release packages
     runs-on: windows-latest
 
     steps:
@@ -45,21 +46,22 @@ jobs:
       - name: Test
         run: dotnet test .\amChipper.sln -c Release -p:Platform=x64 --no-build
 
-      - name: Publish
-        run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\Ready2Release
+      - name: Publish Windows app
+        run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\artifacts\publish\win-x64
 
       - name: Publish language tool
-        run: dotnet publish .\src\amChipper.LanguageTool\amChipper.LanguageTool.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\Ready2Release\tools
+        run: dotnet publish .\src\amChipper.LanguageTool\amChipper.LanguageTool.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\artifacts\publish\win-x64\tools
 
       - name: Export language packs
-        run: .\Ready2Release\tools\amChipper.LanguageTool.exe export --output .\Ready2Release\lang
+        run: .\artifacts\publish\win-x64\tools\amChipper.LanguageTool.exe export --output .\artifacts\publish\win-x64\lang
 
       - name: Add release documents and libopenmpt runtime
         shell: pwsh
         run: |
-          Copy-Item -LiteralPath .\README.md,.\RELEASE_NOTES.md,.\CHANGELOG.md,.\LICENSE -Destination .\Ready2Release -Force
+          $publish = Join-Path $PWD "artifacts\publish\win-x64"
+          Copy-Item -LiteralPath .\README.md,.\RELEASE_NOTES.md,.\CHANGELOG.md,.\LICENSE -Destination $publish -Force
 
-          $libs = Join-Path $PWD "Ready2Release\libs"
+          $libs = Join-Path $publish "libs"
           New-Item -ItemType Directory -Path $libs -Force | Out-Null
           $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.6+release.dev.windows.vs2022.zip"
           $zipPath = Join-Path $env:TEMP ("amchipper-libopenmpt-" + [guid]::NewGuid().ToString("N") + ".zip")
@@ -80,18 +82,38 @@ jobs:
             Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Prepare Linux Wine compatibility package
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "artifacts\publish\linux-x64-wine"
+          $app = Join-Path $root "amChipper"
+          New-Item -ItemType Directory -Path $app -Force | Out-Null
+          Copy-Item -Path .\artifacts\publish\win-x64\* -Destination $app -Recurse -Force
+          Copy-Item -LiteralPath .\packaging\linux-wine\run-amChipper.sh -Destination $root -Force
+          Copy-Item -LiteralPath .\packaging\linux-wine\README-LINUX-WINE.txt -Destination $root -Force
+
       - name: Package
         shell: pwsh
         run: |
-          $zip = "amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-win-x64.zip"
-          Compress-Archive -Path .\Ready2Release\* -DestinationPath $zip -Force
-          "AMCHIPPER_RELEASE_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -ItemType Directory -Path .\artifacts\release -Force | Out-Null
+          $winZip = "artifacts\release\amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-win-x64.zip"
+          $linuxZip = "artifacts\release\amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-linux-x64-wine.zip"
+          Compress-Archive -Path .\artifacts\publish\win-x64\* -DestinationPath $winZip -Force
+          Compress-Archive -Path .\artifacts\publish\linux-x64-wine\* -DestinationPath $linuxZip -Force
+          "AMCHIPPER_RELEASE_WIN_ZIP=$winZip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "AMCHIPPER_RELEASE_LINUX_ZIP=$linuxZip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-win-x64
-          path: ${{ env.AMCHIPPER_RELEASE_ZIP }}
+          path: ${{ env.AMCHIPPER_RELEASE_WIN_ZIP }}
+
+      - name: Upload Linux Wine artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amChipper-${{ env.AMCHIPPER_RELEASE_TAG }}-linux-x64-wine
+          path: ${{ env.AMCHIPPER_RELEASE_LINUX_ZIP }}
 
       - name: Create or update GitHub release
         shell: pwsh
@@ -99,16 +121,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ env.AMCHIPPER_RELEASE_TAG }}"
-          $zip = "${{ env.AMCHIPPER_RELEASE_ZIP }}"
+          $winZip = "${{ env.AMCHIPPER_RELEASE_WIN_ZIP }}"
+          $linuxZip = "${{ env.AMCHIPPER_RELEASE_LINUX_ZIP }}"
           $notes = Get-Content .\RELEASE_NOTES.md -Raw
           $repo = "${{ github.repository }}"
 
           gh release view $tag --repo $repo *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $zip --repo $repo --clobber
+            gh release upload $tag $winZip $linuxZip --repo $repo --clobber
 
-            # Normalize earlier failed runs that may have left a hidden draft or prerelease
-            # entry behind. The Releases page should show a normal public/private release.
             $release = gh api "repos/$repo/releases/tags/$tag" | ConvertFrom-Json
             $payload = @{
               name = "amChipper $tag"
@@ -120,5 +141,5 @@ jobs:
             $payload | gh api -X PATCH "repos/$repo/releases/$($release.id)" --input -
           }
           else {
-            gh release create $tag $zip --repo $repo --title "amChipper $tag" --notes "$notes" --verify-tag
+            gh release create $tag $winZip $linuxZip --repo $repo --title "amChipper $tag" --notes "$notes" --verify-tag
           }

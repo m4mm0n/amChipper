@@ -2,6 +2,20 @@
 
 This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
 
+## v0.2.4.0-AMC20260524.1 - 24.05.2026
+
+### Bug Reporting, QuickLog 2.4, and Release Packaging
+
+- Added **Help -> Report Bug...** with a focused report composer addressed to `admin@darkmaster.no`.
+- Bug reports include user details, reproduction steps, expected/actual behavior, version, status text, current file path, runtime/OS details, and the current log tail.
+- Added mail-client launch plus clipboard fallback so a report can still be sent manually if `mailto:` handling is unavailable.
+- Added regression coverage for report body generation, `mailto:` URI escaping, recipient handling, and log-tail trimming.
+- Upgraded the QuickLog submodule to `v2.4.0` (`544e1e6`) for the latest .NET 10/Linux-capable QuickLog build.
+- Adjusted the WPF app QuickLog reference path so WPF markup compilation resolves the new multi-target QuickLog build reliably.
+- Added a Linux Wine compatibility package with `run-amChipper.sh` and user-facing Linux notes. This runs the Windows WPF build on Linux through Wine because WPF remains Windows-only under .NET.
+- Updated the GitHub release workflow to build and publish both `win-x64` and `linux-x64-wine` artifacts.
+- Bumped the app informational version to `v0.2.4.0-AMC20260524.1`.
+
 ## v0.2.3.0-AMC20260503.6 - 03.05.2026
 
 ### Full SID Corpus Hardening
