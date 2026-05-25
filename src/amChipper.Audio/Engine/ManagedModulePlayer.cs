@@ -62,6 +62,7 @@ public sealed class ManagedModulePlayer : IModulePlayer
                 double target = Math.Max(0, value);
                 if (_module.SeekSeconds(target))
                 {
+                    ReapplyChannelMutes();
                     _positionSecs = target;
                     RaisePositionEvents();
                 }
@@ -151,6 +152,7 @@ public sealed class ManagedModulePlayer : IModulePlayer
             double seconds = EstimateSecondsForOrderRow(order, row);
             if (_module.SeekOrderRow(order, row))
             {
+                ReapplyChannelMutes();
                 _positionSecs = seconds;
                 RaisePositionEvents();
             }
@@ -166,10 +168,15 @@ public sealed class ManagedModulePlayer : IModulePlayer
         if ((uint)channel >= (uint)ChannelCount)
             return;
 
-        if (mute)
-            _mutedChannels.Add(channel);
-        else
-            _mutedChannels.Remove(channel);
+        lock (_lock)
+        {
+            if (mute)
+                _mutedChannels.Add(channel);
+            else
+                _mutedChannels.Remove(channel);
+
+            _module?.SetChannelMuteStatus(channel, mute);
+        }
     }
 
     public void SetChannelVolume(int channel, double volume)
@@ -184,7 +191,16 @@ public sealed class ManagedModulePlayer : IModulePlayer
             _channelPans[channel] = Math.Clamp(panning, -1.0, 1.0);
     }
 
-    public void UnmuteAllChannels() => _mutedChannels.Clear();
+    public void UnmuteAllChannels()
+    {
+        lock (_lock)
+        {
+            foreach (int channel in _mutedChannels.ToArray())
+                _module?.SetChannelMuteStatus(channel, false);
+
+            _mutedChannels.Clear();
+        }
+    }
 
     public Song? ImportAsSong()
     {
@@ -235,6 +251,15 @@ public sealed class ManagedModulePlayer : IModulePlayer
         _channelVolumes = Enumerable.Repeat(1.0, Math.Max(ChannelCount, 0)).ToArray();
         _channelPans = new double[Math.Max(ChannelCount, 0)];
         _mutedChannels.Clear();
+    }
+
+    private void ReapplyChannelMutes()
+    {
+        if (_module is null)
+            return;
+
+        foreach (int channel in _mutedChannels)
+            _module.SetChannelMuteStatus(channel, true);
     }
 
     private void RaisePositionEvents()
@@ -365,6 +390,12 @@ public sealed class ManagedModulePlayer : IModulePlayer
         if (_module is null)
             return;
 
+        var currentInstrumentByChannel = new int[Math.Max(ChannelCount, 0)];
+        var channelInstrumentCounts = Enumerable
+            .Range(0, Math.Max(ChannelCount, 0))
+            .Select(_ => new Dictionary<int, int>())
+            .ToArray();
+
         for (int patternIndex = 0; patternIndex < PatternCount; patternIndex++)
         {
             int rows = Math.Max(_module.GetPatternRowCount(patternIndex), 1);
@@ -378,11 +409,36 @@ public sealed class ManagedModulePlayer : IModulePlayer
                     if (IsEmpty(command))
                         continue;
 
-                    pattern.SetNote(row, channel, ConvertNote(command));
+                    if (command.Instrument > 0)
+                        currentInstrumentByChannel[channel] = command.Instrument;
+
+                    var note = ConvertNote(command, Format);
+                    if (note.InstrumentIndex == 0
+                        && IsPlayableImportedNote(note)
+                        && currentInstrumentByChannel[channel] > 0)
+                    {
+                        note.InstrumentIndex = (byte)Math.Min(currentInstrumentByChannel[channel], 255);
+                    }
+
+                    if (IsPlayableImportedNote(note) && note.InstrumentIndex > 0)
+                    {
+                        var counts = channelInstrumentCounts[channel];
+                        counts.TryGetValue(note.InstrumentIndex, out int count);
+                        counts[note.InstrumentIndex] = count + 1;
+                    }
+
+                    pattern.SetNote(row, channel, note);
                 }
             }
 
             song.Patterns.Add(pattern);
+        }
+
+        for (int channel = 0; channel < song.Tracks.Count && channel < channelInstrumentCounts.Length; channel++)
+        {
+            int preferredInstrument = GetDominantInstrumentIndex(channelInstrumentCounts[channel]);
+            if (preferredInstrument > 0)
+                song.Tracks[channel].InstrumentIndex = preferredInstrument - 1;
         }
     }
 
@@ -440,7 +496,7 @@ public sealed class ManagedModulePlayer : IModulePlayer
         && command.Command == ManagedCommand.None
         && command.Param == 0;
 
-    private static amChipper.Core.Models.Note ConvertNote(ModCommand command)
+    private static amChipper.Core.Models.Note ConvertNote(ModCommand command, ModuleFormat format)
     {
         var note = new amChipper.Core.Models.Note
         {
@@ -451,7 +507,12 @@ public sealed class ManagedModulePlayer : IModulePlayer
         };
 
         if (ModCommand.IsNote(command.Note))
-            note.Pitch = (byte)Math.Min((byte)command.Note + 11, 127);
+        {
+            int pitch = format == ModuleFormat.XM
+                ? (int)command.Note - 1
+                : (int)command.Note + 11;
+            note.Pitch = (byte)Math.Clamp(pitch, 0, 127);
+        }
         else if (command.Note is ManagedNote.Off or ManagedNote.Stop)
             note.Pitch = (byte)SpecialNote.NoteOff;
 
@@ -462,6 +523,24 @@ public sealed class ManagedModulePlayer : IModulePlayer
         }
 
         return note;
+    }
+
+    private static bool IsPlayableImportedNote(amChipper.Core.Models.Note note)
+    {
+        return note.Pitch > 0
+            && note.Pitch != (byte)SpecialNote.NoteOff
+            && note.Pitch != (byte)SpecialNote.NoteFade;
+    }
+
+    private static int GetDominantInstrumentIndex(Dictionary<int, int> counts)
+    {
+        if (counts.Count == 0)
+            return 0;
+
+        return counts
+            .OrderByDescending(kvp => kvp.Value)
+            .ThenBy(kvp => kvp.Key)
+            .First().Key;
     }
 
     private static EffectCommand MapEffect(ManagedCommand command) => command switch

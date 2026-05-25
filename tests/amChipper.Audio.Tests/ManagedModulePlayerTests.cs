@@ -128,10 +128,18 @@ public sealed class ManagedModulePlayerTests
         using var player = new ManagedModulePlayer(44_100);
         Assert.True(player.Load(DemoModuleFactory.CreateTwoOrderAudibleMod(), "managed-two-order.mod"));
 
+        var rows = new List<RowChangedEventArgs>();
+        player.RowChanged += (_, args) => rows.Add(args);
+        player.SetChannelVolume(2, 0.35);
+        player.SetChannelPanning(2, 0.5);
+
         player.SeekToOrder(1, 3);
 
         Assert.Equal(1, player.CurrentOrder);
         Assert.Equal(3, player.CurrentRow);
+        Assert.Contains(rows, args => args.Order == 1 && args.Pattern == 1 && args.Row == 3);
+        Assert.Equal(0.35, player.GetChannelVolume(2), precision: 3);
+        Assert.Equal(0.5, player.GetChannelPanning(2), precision: 3);
 
         var buffer = new float[512];
         int frames = player.Render(buffer, 256);
@@ -139,7 +147,65 @@ public sealed class ManagedModulePlayerTests
         Assert.Equal(256, frames);
         Assert.Equal(1, player.CurrentOrder);
         Assert.Equal(3, player.CurrentRow);
+        Assert.Equal(0.35, player.GetChannelVolume(2), precision: 3);
+        Assert.Equal(0.5, player.GetChannelPanning(2), precision: 3);
         Assert.Contains(buffer.Take(frames * 2), sample => Math.Abs(sample) > 0.0001f);
+    }
+
+    [Fact]
+    public void ManagedBackendAppliesChannelMuteInCoreMixerAcrossExactSeek()
+    {
+        using var player = new ManagedModulePlayer(44_100);
+        Assert.True(player.Load(DemoModuleFactory.CreateAudibleMod(), "managed-muted.mod"));
+
+        var baseline = new float[1024];
+        int baselineFrames = player.Render(baseline, baseline.Length / 2);
+        double baselineRms = RmsStereo(baseline, baselineFrames);
+
+        player.SeekToOrder(0, 0);
+        player.SetChannelMuteStatus(0, true);
+        var muted = new float[1024];
+        int mutedFrames = player.Render(muted, muted.Length / 2);
+        double mutedRms = RmsStereo(muted, mutedFrames);
+
+        Assert.True(mutedRms < baselineRms * 0.05, $"managed channel mute did not silence the only audible channel: baseline={baselineRms}, muted={mutedRms}");
+
+        player.SeekToOrder(0, 0);
+        Array.Clear(muted);
+        mutedFrames = player.Render(muted, muted.Length / 2);
+        mutedRms = RmsStereo(muted, mutedFrames);
+        Assert.True(mutedRms < baselineRms * 0.05, $"managed channel mute did not survive exact seek: baseline={baselineRms}, muted={mutedRms}");
+    }
+
+    [Fact]
+    public void ManagedBackendImportsXmNotesInMidiPitchDomain()
+    {
+        using var player = new ManagedModulePlayer(44_100);
+        Assert.True(player.Load(DemoModuleFactory.CreateMappedXm(), "managed-mapped.xm"));
+
+        var song = player.ImportAsSong();
+
+        Assert.NotNull(song);
+        var note = song.Patterns[0].GetNote(0, 0);
+        Assert.Equal(60, note.Pitch);
+        Assert.Equal(1, note.InstrumentIndex);
+        Assert.Equal(1, song.Instruments[0].NoteMap[60]);
+    }
+
+    [Fact]
+    public void ManagedBackendCarriesTrackerInstrumentForInstrumentlessNotes()
+    {
+        using var player = new ManagedModulePlayer(44_100);
+        Assert.True(player.Load(DemoModuleFactory.CreateInstrumentCarryMod(), "managed-carry.mod"));
+
+        var song = player.ImportAsSong();
+
+        Assert.NotNull(song);
+        Assert.Equal(2, song.Patterns[0].GetNote(0, 0).InstrumentIndex);
+        Assert.Equal(2, song.Patterns[0].GetNote(4, 0).InstrumentIndex);
+        Assert.Equal(2, song.Patterns[0].GetNote(8, 0).InstrumentIndex);
+        Assert.Equal(1, song.Patterns[0].GetNote(12, 0).InstrumentIndex);
+        Assert.Equal(1, song.Tracks[0].InstrumentIndex);
     }
 
     private static IWaveProvider CreateWaveProvider(AudioEngine engine, int sampleRate, int channels)
@@ -159,6 +225,18 @@ public sealed class ManagedModulePlayerTests
         {
             yield return BitConverter.ToSingle(buffer, offset);
         }
+    }
+
+    private static double RmsStereo(float[] buffer, int frames)
+    {
+        if (frames <= 0)
+            return 0;
+
+        double sum = 0;
+        for (int i = 0; i < frames * 2; i++)
+            sum += buffer[i] * buffer[i];
+
+        return Math.Sqrt(sum / (frames * 2));
     }
 
     private static RenderStats RenderStatsFor(IModulePlayer player, byte[] data, string file)
@@ -341,6 +419,103 @@ public sealed class ManagedModulePlayerTests
             return memory.ToArray();
         }
 
+        public static byte[] CreateInstrumentCarryMod()
+        {
+            using var memory = new MemoryStream();
+            WriteAscii(memory, "managed carry", 20);
+
+            for (int i = 0; i < 31; i++)
+            {
+                WriteAscii(memory, i == 1 ? "lead sample" : string.Empty, 22);
+                if (i == 1)
+                {
+                    WriteBigEndianWord(memory, 64);
+                    memory.WriteByte(0);
+                    memory.WriteByte(64);
+                    WriteBigEndianWord(memory, 0);
+                    WriteBigEndianWord(memory, 64);
+                }
+                else
+                {
+                    memory.Write(new byte[8]);
+                }
+            }
+
+            memory.WriteByte(1);
+            memory.WriteByte(0);
+            memory.WriteByte(0);
+            memory.Write(new byte[127]);
+            memory.Write("M.K."u8);
+
+            var pattern = new byte[64 * 4 * 4];
+            WriteModCell(pattern, row: 0, channel: 0, period: 0x1AC, instrument: 2, effect: 0, parameter: 0);
+            WriteModCell(pattern, row: 4, channel: 0, period: 0x1AC, instrument: 0, effect: 0, parameter: 0);
+            WriteModCell(pattern, row: 8, channel: 0, period: 0x1AC, instrument: 0, effect: 0, parameter: 0);
+            WriteModCell(pattern, row: 12, channel: 0, period: 0x1AC, instrument: 1, effect: 0, parameter: 0);
+            memory.Write(pattern);
+
+            for (int i = 0; i < 128; i++)
+                memory.WriteByte((byte)(i % 32 < 16 ? 96 : unchecked((byte)-96)));
+
+            return memory.ToArray();
+        }
+
+        public static byte[] CreateMappedXm()
+        {
+            using var memory = new MemoryStream();
+            memory.Write("Extended Module: "u8);
+            WriteAscii(memory, "managed mapped xm", 20);
+            memory.WriteByte(0x1A);
+            WriteAscii(memory, "amChipper tests", 20);
+            WriteUInt16(memory, 0x0104);
+            WriteUInt32(memory, 276);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 0);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 6);
+            WriteUInt16(memory, 125);
+            memory.WriteByte(0);
+            memory.Write(new byte[255]);
+
+            WriteUInt32(memory, 9);
+            memory.WriteByte(0);
+            WriteUInt16(memory, 1);
+            WriteUInt16(memory, 5);
+            memory.WriteByte(49);
+            memory.WriteByte(1);
+            memory.WriteByte(0);
+            memory.WriteByte(0);
+            memory.WriteByte(0);
+
+            WriteUInt32(memory, 263);
+            WriteAscii(memory, "mapped instrument", 22);
+            memory.WriteByte(0);
+            WriteUInt16(memory, 2);
+            WriteUInt32(memory, 40);
+
+            var sampleMap = new byte[96];
+            sampleMap[48] = 1;
+            memory.Write(sampleMap);
+            for (int i = 0; i < 48; i++)
+                WriteUInt16(memory, 0);
+
+            memory.Write(new byte[14]);
+            WriteUInt16(memory, 256);
+            WriteUInt16(memory, 0);
+            memory.Write(new byte[20]);
+
+            WriteSilentXmSampleHeader(memory, "first sample", panning: 32);
+            WriteSilentXmSampleHeader(memory, "second sample", panning: 224);
+
+            while (memory.Length < 1024)
+                memory.WriteByte(0);
+
+            return memory.ToArray();
+        }
+
         private static void WriteAscii(Stream stream, string value, int length)
         {
             var buffer = new byte[length];
@@ -353,6 +528,34 @@ public sealed class ManagedModulePlayerTests
         {
             stream.WriteByte((byte)(value >> 8));
             stream.WriteByte((byte)(value & 0xFF));
+        }
+
+        private static void WriteUInt16(Stream stream, ushort value)
+        {
+            stream.WriteByte((byte)(value & 0xFF));
+            stream.WriteByte((byte)(value >> 8));
+        }
+
+        private static void WriteUInt32(Stream stream, uint value)
+        {
+            stream.WriteByte((byte)(value & 0xFF));
+            stream.WriteByte((byte)((value >> 8) & 0xFF));
+            stream.WriteByte((byte)((value >> 16) & 0xFF));
+            stream.WriteByte((byte)((value >> 24) & 0xFF));
+        }
+
+        private static void WriteSilentXmSampleHeader(Stream stream, string name, byte panning)
+        {
+            WriteUInt32(stream, 0);
+            WriteUInt32(stream, 0);
+            WriteUInt32(stream, 0);
+            stream.WriteByte(64);
+            stream.WriteByte(0);
+            stream.WriteByte(0);
+            stream.WriteByte(panning);
+            stream.WriteByte(0);
+            stream.WriteByte(0);
+            WriteAscii(stream, name, 22);
         }
 
         private static void WriteModCell(byte[] pattern, int row, int channel, int period, int instrument, int effect, int parameter)
