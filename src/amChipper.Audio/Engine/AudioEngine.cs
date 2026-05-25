@@ -643,16 +643,7 @@ internal sealed class ChipWaveProvider : IWaveProvider
     /// <summary>
     /// Stores or exposes _floatBuffer.
     /// </summary>
-    private readonly float[] _floatBuffer;
-    // Match ModulePlayer's pre-allocated native render buffer capacity (4096 frames).
-    // NAudio may request up to ~(sampleRate * desiredLatency / 1000) frames per call;
-    // at 44100 Hz / 200 ms that is ~8820 — we cap at 4096 to stay within the native
-    // buffer, but crucially we no longer under-fill with the old 512-frame limit which
-    // caused silence gaps and audible stuttering.
-    /// <summary>
-    /// Stores or exposes int.
-    /// </summary>
-    private const int FramesPerBuffer = 4096;
+    private float[] _floatBuffer = [];
 
     /// <summary>
     /// Stores or exposes WaveFormat.
@@ -663,7 +654,6 @@ internal sealed class ChipWaveProvider : IWaveProvider
     {
         _engine = engine;
         WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
-        _floatBuffer = new float[FramesPerBuffer * channels];
     }
 
     /// <summary>
@@ -673,32 +663,34 @@ internal sealed class ChipWaveProvider : IWaveProvider
     {
         int channels = WaveFormat.Channels;
         int totalFrames = count / (sizeof(float) * channels);
-        int framesRemaining = totalFrames;
-        int bytesWritten = 0;
+        if (totalFrames <= 0)
+            return 0;
 
-        while (framesRemaining > 0)
+        int requiredSamples = totalFrames * channels;
+        if (_floatBuffer.Length < requiredSamples)
+            _floatBuffer = new float[requiredSamples];
+
+        Array.Clear(_floatBuffer, 0, requiredSamples);
+
+        int renderedFrames = 0;
+        if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
+            renderedFrames = _engine.ChipStreamPlayer.Render(_floatBuffer, totalFrames, channels);
+        else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
+            renderedFrames = _engine.AudioFilePlayer.Render(_floatBuffer, totalFrames, channels);
+        else if (_engine.UseModulePlayer && _engine.ModulePlayer.IsLoaded)
+            renderedFrames = _engine.ModulePlayer.Render(_floatBuffer, totalFrames);
+        else
         {
-            int frameCount = Math.Min(framesRemaining, FramesPerBuffer);
-            int samplesToRender = frameCount * channels;
-            Array.Clear(_floatBuffer, 0, samplesToRender);
-
-            if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
-                _engine.ChipStreamPlayer.Render(_floatBuffer, frameCount, channels);
-            else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
-                _engine.AudioFilePlayer.Render(_floatBuffer, frameCount, channels);
-            else if (_engine.UseModulePlayer && _engine.ModulePlayer.IsLoaded)
-                _engine.ModulePlayer.Render(_floatBuffer, frameCount);
-            else
-                _engine.Sequencer.Render(_floatBuffer, frameCount);
-
-            _engine.OnBufferFilled(_floatBuffer, frameCount);
-
-            int byteCount = samplesToRender * sizeof(float);
-            System.Buffer.BlockCopy(_floatBuffer, 0, buffer, offset + bytesWritten, byteCount);
-            bytesWritten += byteCount;
-            framesRemaining -= frameCount;
+            _engine.Sequencer.Render(_floatBuffer, totalFrames);
+            renderedFrames = totalFrames;
         }
 
-        return bytesWritten;
+        _engine.OnBufferFilled(_floatBuffer, renderedFrames);
+
+        int byteCount = renderedFrames * channels * sizeof(float);
+        if (byteCount > 0)
+            System.Buffer.BlockCopy(_floatBuffer, 0, buffer, offset, byteCount);
+
+        return byteCount;
     }
 }

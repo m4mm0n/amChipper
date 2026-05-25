@@ -93,17 +93,15 @@ public sealed class ModulePlayer : IModulePlayer
     /// </summary>
     private SetChannelPanningDelegate? _setChannelPanning;
 
-    // Pre-allocated native render buffer — avoids AllocHGlobal on every audio callback.
-    // Sized for the largest single Read() call the wave provider will make (4096 frames
-    // stereo = 32 KB).  Allocated once at construction, freed in Dispose.
-    /// <summary>
-    /// Stores or exposes int.
-    /// </summary>
-    private const int RenderBufFrames = 4096;
+    // Native scratch buffer used during render. Grown on demand to match requested frame count.
     /// <summary>
     /// Stores or exposes _renderBuf.
     /// </summary>
-    private readonly nint _renderBuf;
+    private nint _renderBuf;
+    /// <summary>
+    /// Stores or exposes _renderBufFrames.
+    /// </summary>
+    private int _renderBufFrames;
 
     /// <summary>
     /// Stores or exposes _dllAvailable.
@@ -114,8 +112,24 @@ public sealed class ModulePlayer : IModulePlayer
     {
         _sampleRate = sampleRate;
         _log = logger ?? NullAppLogger.Instance;
-        _renderBuf = Marshal.AllocHGlobal(RenderBufFrames * 2 * sizeof(float));
+        _renderBufFrames = 0;
+        _renderBuf = nint.Zero;
         CheckDll();
+    }
+
+    /// <summary>
+    /// Ensures the native render buffer can hold requested frame count.
+    /// </summary>
+    private void EnsureRenderBuffer(int frameCount)
+    {
+        if (frameCount <= _renderBufFrames)
+            return;
+
+        if (_renderBuf != nint.Zero)
+            Marshal.FreeHGlobal(_renderBuf);
+
+        _renderBufFrames = Math.Max(1024, frameCount);
+        _renderBuf = Marshal.AllocHGlobal(_renderBufFrames * 2 * sizeof(float));
     }
 
     /// <summary>
@@ -342,15 +356,17 @@ public sealed class ModulePlayer : IModulePlayer
     {
         if (!IsLoaded || _disposed) return 0;
 
-        // Clamp to pre-allocated buffer capacity.
-        int frames = Math.Min(frameCount, RenderBufFrames);
-
         int rendered;
         lock (_lock)
         {
+            if (frameCount <= 0 || buffer.Length < frameCount * 2)
+                return 0;
+
+            EnsureRenderBuffer(frameCount);
+
             // Render directly into the pre-allocated native buffer — no per-call alloc.
             rendered = (int)LibOpenMpt.ReadInterleavedFloatStereo(
-                _module, _sampleRate, (nuint)frames, _renderBuf);
+                _module, _sampleRate, (nuint)frameCount, _renderBuf);
 
             if (rendered <= 0 && LoopEnabled)
             {
@@ -358,11 +374,11 @@ public sealed class ModulePlayer : IModulePlayer
                 _log.Debug($"Module reached end; looping to order {loopOrder}.");
                 LibOpenMpt.SetPositionOrderRow(_module, loopOrder, 0);
                 rendered = (int)LibOpenMpt.ReadInterleavedFloatStereo(
-                    _module, _sampleRate, (nuint)frames, _renderBuf);
+                    _module, _sampleRate, (nuint)frameCount, _renderBuf);
             }
 
             if (rendered > 0)
-                Marshal.Copy(_renderBuf, buffer, 0, rendered * 2);
+                Marshal.Copy(_renderBuf, buffer, 0, Math.Min(rendered * 2, buffer.Length));
 
             int ord = LibOpenMpt.GetCurrentOrder(_module);
             int row = LibOpenMpt.GetCurrentRow(_module);
@@ -1036,7 +1052,12 @@ public sealed class ModulePlayer : IModulePlayer
         if (_disposed) return;
         _disposed = true;
         lock (_lock) FreeModule();
-        Marshal.FreeHGlobal(_renderBuf);
+        if (_renderBuf != nint.Zero)
+        {
+            Marshal.FreeHGlobal(_renderBuf);
+            _renderBuf = nint.Zero;
+            _renderBufFrames = 0;
+        }
         _log.Debug("ModulePlayer disposed.");
     }
 }

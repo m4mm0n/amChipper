@@ -149,7 +149,7 @@ public sealed class ManagedModulePlayer : IModulePlayer
         lock (_lock)
         {
             double seconds = EstimateSecondsForOrderRow(order, row);
-            if (_module.SeekSeconds(seconds))
+            if (_module.SeekOrderRow(order, row))
             {
                 _positionSecs = seconds;
                 RaisePositionEvents();

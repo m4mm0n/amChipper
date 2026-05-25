@@ -122,6 +122,26 @@ public sealed class ManagedModulePlayerTests
         }
     }
 
+    [Fact]
+    public void ManagedBackendSeekToOrderUsesExactOrderRow()
+    {
+        using var player = new ManagedModulePlayer(44_100);
+        Assert.True(player.Load(DemoModuleFactory.CreateTwoOrderAudibleMod(), "managed-two-order.mod"));
+
+        player.SeekToOrder(1, 3);
+
+        Assert.Equal(1, player.CurrentOrder);
+        Assert.Equal(3, player.CurrentRow);
+
+        var buffer = new float[512];
+        int frames = player.Render(buffer, 256);
+
+        Assert.Equal(256, frames);
+        Assert.Equal(1, player.CurrentOrder);
+        Assert.Equal(3, player.CurrentRow);
+        Assert.Contains(buffer.Take(frames * 2), sample => Math.Abs(sample) > 0.0001f);
+    }
+
     private static IWaveProvider CreateWaveProvider(AudioEngine engine, int sampleRate, int channels)
     {
         var providerType = typeof(AudioEngine).Assembly.GetType("amChipper.Audio.Engine.ChipWaveProvider", throwOnError: true)!;
@@ -278,6 +298,49 @@ public sealed class ManagedModulePlayerTests
             return memory.ToArray();
         }
 
+        public static byte[] CreateTwoOrderAudibleMod()
+        {
+            using var memory = new MemoryStream();
+            WriteAscii(memory, "managed exact seek", 20);
+
+            for (int i = 0; i < 31; i++)
+            {
+                WriteAscii(memory, i == 0 ? "square wave" : string.Empty, 22);
+                if (i == 0)
+                {
+                    WriteBigEndianWord(memory, 64);
+                    memory.WriteByte(0);
+                    memory.WriteByte(64);
+                    WriteBigEndianWord(memory, 0);
+                    WriteBigEndianWord(memory, 64);
+                }
+                else
+                {
+                    memory.Write(new byte[8]);
+                }
+            }
+
+            memory.WriteByte(2);
+            memory.WriteByte(0);
+            memory.WriteByte(0);
+            memory.WriteByte(1);
+            memory.Write(new byte[126]);
+            memory.Write("M.K."u8);
+
+            var firstPattern = new byte[64 * 4 * 4];
+            WriteModCell(firstPattern, row: 0, channel: 0, period: 0x1AC, instrument: 1, effect: 0, parameter: 0);
+            memory.Write(firstPattern);
+
+            var secondPattern = new byte[64 * 4 * 4];
+            WriteModCell(secondPattern, row: 3, channel: 0, period: 0x1AC, instrument: 1, effect: 0, parameter: 0);
+            memory.Write(secondPattern);
+
+            for (int i = 0; i < 128; i++)
+                memory.WriteByte((byte)(i % 32 < 16 ? 96 : unchecked((byte)-96)));
+
+            return memory.ToArray();
+        }
+
         private static void WriteAscii(Stream stream, string value, int length)
         {
             var buffer = new byte[length];
@@ -290,6 +353,15 @@ public sealed class ManagedModulePlayerTests
         {
             stream.WriteByte((byte)(value >> 8));
             stream.WriteByte((byte)(value & 0xFF));
+        }
+
+        private static void WriteModCell(byte[] pattern, int row, int channel, int period, int instrument, int effect, int parameter)
+        {
+            var offset = ((row * 4) + channel) * 4;
+            pattern[offset] = (byte)(((instrument & 0xF0) | ((period >> 8) & 0x0F)));
+            pattern[offset + 1] = (byte)(period & 0xFF);
+            pattern[offset + 2] = (byte)(((instrument & 0x0F) << 4) | (effect & 0x0F));
+            pattern[offset + 3] = (byte)(parameter & 0xFF);
         }
     }
 }
