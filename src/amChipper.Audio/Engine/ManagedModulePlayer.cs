@@ -207,6 +207,7 @@ public sealed class ManagedModulePlayer : IModulePlayer
         };
 
         AddInstruments(song);
+        ApplyNativeSampleData(song);
         AddTracks(song);
         AddPatterns(song);
         AddOrderBlocks(song);
@@ -289,6 +290,60 @@ public sealed class ManagedModulePlayer : IModulePlayer
                 Name = string.IsNullOrWhiteSpace(name) ? $"Instrument {i}" : name.Trim(),
                 SourceType = InstrumentSourceType.Sample
             });
+        }
+    }
+
+    /// <summary>
+    /// Imports native XM sample payloads into the editable song model for preview and export paths.
+    /// </summary>
+    /// <param name="song">The song model receiving decoded sample data.</param>
+    private void ApplyNativeSampleData(Song song)
+    {
+        if (Format != ModuleFormat.XM || _moduleData is null)
+            return;
+
+        try
+        {
+            var imported = XmSampleImporter.Parse(_moduleData, _sourceFileName);
+            int instrumentCount = Math.Min(song.Instruments.Count, imported.Instruments.Count);
+            int loadedSamples = 0;
+
+            for (int i = 0; i < instrumentCount; i++)
+            {
+                var source = imported.Instruments[i];
+                if (source.Samples.Count == 0)
+                    continue;
+
+                var target = song.Instruments[i];
+                target.SourceType = InstrumentSourceType.Sample;
+                target.Samples.Clear();
+                target.NoteMap = Enumerable.Repeat((byte)255, 128).ToArray();
+
+                foreach (var sourceSample in source.Samples)
+                    target.Samples.Add(sourceSample);
+
+                for (int note = 0; note < source.SampleMap.Length && note < 96; note++)
+                {
+                    int mapped = source.SampleMap[note];
+                    if (mapped >= 0 && mapped < target.Samples.Count)
+                        target.NoteMap[note + 12] = (byte)mapped;
+                }
+
+                byte low = target.NoteMap[12] == 255 ? (byte)0 : target.NoteMap[12];
+                byte high = target.NoteMap[107] == 255 ? low : target.NoteMap[107];
+                for (int note = 0; note < 12; note++)
+                    target.NoteMap[note] = low;
+                for (int note = 108; note < target.NoteMap.Length; note++)
+                    target.NoteMap[note] = high;
+
+                loadedSamples += target.Samples.Count;
+            }
+
+            _log.Info($"XM sample import complete: instrumentsWithSamples={song.Instruments.Count(i => i.SourceType == InstrumentSourceType.Sample)} samples={loadedSamples}");
+        }
+        catch (Exception ex)
+        {
+            _log.Warning($"XM sample import failed; native playback will use synth fallback. {ex.GetType().Name}: {ex.Message}");
         }
     }
 

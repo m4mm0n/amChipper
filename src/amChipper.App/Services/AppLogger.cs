@@ -50,21 +50,44 @@ public static class AppLogger
 
         LogManager.Shutdown();
         LogDirectory = logDirectory;
-        LogFilePath = logFile;
 
-        var quickLogger = new QuickLogger(logFile)
+        Exception? fallbackReason = null;
+        var activeLogFile = logFile;
+        QuickLogger quickLogger;
+        try
+        {
+            quickLogger = CreateQuickLogger(activeLogFile);
+        }
+        catch (IOException ex)
+        {
+            fallbackReason = ex;
+            activeLogFile = Path.Combine(logDirectory, $"amChipper-{Environment.ProcessId}.log");
+            quickLogger = CreateQuickLogger(activeLogFile);
+        }
+
+        LogFilePath = activeLogFile;
+        LogManager.ConfigureDefault(quickLogger);
+        Instance = new QuickLogAdapter(LogManager.GetDefaultLogger());
+
+        Info($"========== amChipper session started {DateTimeOffset.Now:O} ==========");
+        if (fallbackReason is not null)
+            Warning($"Primary log file was unavailable ({fallbackReason.Message}); using fallback log file.");
+        Info($"amChipper logger started. Log -> {activeLogFile}");
+    }
+
+    /// <summary>
+    /// Creates a QuickLog logger configured for amChipper file logging.
+    /// </summary>
+    /// <param name="logFile">The log file path to write.</param>
+    /// <returns>A configured QuickLog logger instance.</returns>
+    private static QuickLogger CreateQuickLogger(string logFile) =>
+        new(logFile)
         {
             EnableConsoleLogging = false,
             EnableFileLogging = true,
             EnableEventLogging = false,
             EnableTraceLogging = false
         };
-        LogManager.ConfigureDefault(quickLogger);
-        Instance = new QuickLogAdapter(LogManager.GetDefaultLogger());
-
-        Info($"========== amChipper session started {DateTimeOffset.Now:O} ==========");
-        Info($"amChipper logger started. Log -> {logFile}");
-    }
 
     /// <summary>Flush and release all QuickLog resources. Call from App.OnExit.</summary>
     public static void Shutdown()

@@ -38,6 +38,33 @@ public sealed class ManagedModulePlayerTests
             return;
     }
 
+    /// <summary>
+    /// Ensures managed XM imports keep real sample data for editable preview playback.
+    /// </summary>
+    [Fact]
+    public void ManagedBackendImportsXmSampleDataForEditablePreview()
+    {
+        string path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "OneDrive",
+            "Dokumenter",
+            "My FTPRush Downloads",
+            "Svenzzon",
+            "blizzard.xm");
+
+        if (!File.Exists(path))
+            return;
+
+        using var managed = new ManagedModulePlayer(44_100);
+        Assert.True(managed.Load(File.ReadAllBytes(path), path));
+
+        var song = managed.ImportAsSong();
+
+        Assert.NotNull(song);
+        Assert.True(song.Instruments.Sum(static instrument => instrument.Samples.Count) > 0);
+        Assert.Contains(song.Instruments, static instrument => instrument.SourceType == amChipper.Core.Models.InstrumentSourceType.Sample);
+    }
+
     [Fact]
     public void FactoryCreatesManagedBackendAndRendersDemoModuleWhenRequested()
     {
