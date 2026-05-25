@@ -8,9 +8,11 @@ namespace amChipper.Core.Interfaces;
 /// </summary>
 public interface IModulePlayer : IDisposable
 {
+    string BackendName { get; }
     bool IsLoaded { get; }
     int OrderCount { get; }
     int PatternCount { get; }
+    int ChannelCount { get; }
     int CurrentOrder { get; }
     int CurrentRow { get; }
     double DurationSecs { get; }
@@ -36,6 +38,12 @@ public interface IModulePlayer : IDisposable
     void SeekToOrder(int order, int row = 0);
 
     double GetCurrentChannelVuMono(int channel);
+    double GetChannelVolume(int channel);
+    double GetChannelPanning(int channel);
+    void SetChannelMuteStatus(int channel, bool mute);
+    void SetChannelVolume(int channel, double volume);
+    void SetChannelPanning(int channel, double panning);
+    void UnmuteAllChannels();
 
     /// <summary>Convert the currently-loaded module into an in-memory Song model (best-effort).</summary>
     Song? ImportAsSong();

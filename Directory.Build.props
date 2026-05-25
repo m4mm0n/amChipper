@@ -5,5 +5,7 @@
     <FileVersion>0.2.4.0</FileVersion>
     <InformationalVersion>v0.2.4.0-AMC20260524.2</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <LibOpenMptNetRoot Condition="'$(LibOpenMptNetRoot)' == ''">$(MSBuildThisFileDirectory)..\..\libopenmpt.net</LibOpenMptNetRoot>
+    <UseManagedLibOpenMpt Condition="'$(UseManagedLibOpenMpt)' == '' and Exists('$(LibOpenMptNetRoot)\libopenmpt.net.Core\libopenmpt.net.Core.csproj')">true</UseManagedLibOpenMpt>
   </PropertyGroup>
 </Project>

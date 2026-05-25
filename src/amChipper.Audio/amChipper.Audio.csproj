@@ -10,6 +10,10 @@
     <Platforms>x64</Platforms>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(UseManagedLibOpenMpt)' == 'true'">
+    <DefineConstants>$(DefineConstants);AMCHIPPER_LIBOPENMPT_NET</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
@@ -18,5 +22,11 @@
   <ItemGroup>
     <ProjectReference Include="..\amChipper.Core\amChipper.Core.csproj" />
     <ProjectReference Include="..\amChipper.SidPlayer\amChipper.SidPlayer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseManagedLibOpenMpt)' == 'true'">
+    <ProjectReference Include="$(LibOpenMptNetRoot)\libopenmpt.net.Core\libopenmpt.net.Core.csproj">
+      <Properties>Configuration=$(Configuration);Platform=AnyCPU</Properties>
+    </ProjectReference>
   </ItemGroup>
 </Project>

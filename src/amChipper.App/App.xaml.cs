@@ -57,7 +57,12 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         bool downloadLibOpenMpt = false;
-        if (!DependencyBootstrapper.IsLibOpenMptPresent())
+        bool useManagedOpenMpt = IsManagedOpenMptBackendRequested();
+        if (useManagedOpenMpt)
+        {
+            AppLogger.Info("libopenmpt.net managed backend requested; skipping native libopenmpt.dll setup prompt.");
+        }
+        else if (!DependencyBootstrapper.IsLibOpenMptPresent())
         {
             AppLogger.Info("libopenmpt.dll missing or invalid — prompting user.");
 
@@ -111,4 +116,23 @@ public partial class App : Application
         AppLogger.Shutdown();
         base.OnExit(e);
     }
+
+    private static bool IsManagedOpenMptBackendRequested()
+    {
+        string? environment = Environment.GetEnvironmentVariable("AMCHIPPER_OPENMPT_BACKEND");
+        if (IsManagedOpenMptBackendName(environment))
+            return true;
+
+        string markerPath = Path.Combine(AppContext.BaseDirectory, "amChipper.openmpt-backend");
+        if (!File.Exists(markerPath))
+            return false;
+
+        string marker = File.ReadLines(markerPath).FirstOrDefault() ?? string.Empty;
+        return IsManagedOpenMptBackendName(marker);
+    }
+
+    private static bool IsManagedOpenMptBackendName(string? backend) =>
+        string.Equals(backend?.Trim(), "managed", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(backend?.Trim(), "libopenmpt.net", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(backend?.Trim(), "dotnet", StringComparison.OrdinalIgnoreCase);
 }

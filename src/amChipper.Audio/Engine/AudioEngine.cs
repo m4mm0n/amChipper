@@ -39,7 +39,7 @@ public sealed class AudioEngine : IAudioEngine
     /// <summary>
     /// Stores or exposes ModulePlayer.
     /// </summary>
-    public ModulePlayer ModulePlayer { get; }
+    public IModulePlayer ModulePlayer { get; }
     /// <summary>
     /// Stores or exposes Sequencer.
     /// </summary>
@@ -114,7 +114,7 @@ public sealed class AudioEngine : IAudioEngine
     public AudioEngine(IAppLogger? logger = null)
     {
         _log = logger ?? NullAppLogger.Instance;
-        ModulePlayer = new ModulePlayer(44100, _log);
+        ModulePlayer = ModulePlayerFactory.Create(44100, _log);
         Sequencer = new InternalSequencer(44100, _log);
         AudioFilePlayer = new RenderedAudioFilePlayer(_log);
         ChipStreamPlayer = new ChipStreamPlayer(_log);
@@ -140,7 +140,7 @@ public sealed class AudioEngine : IAudioEngine
         BufferCount = Math.Clamp(bufferCount, 2, 8);
 
         _waveOut?.Dispose();
-        _provider = new ChipWaveProvider(sampleRate, channels, this);
+        _provider = new ChipWaveProvider(sampleRate, _channels, this);
         _waveOut = new WaveOutEvent
         {
             DeviceNumber = outputDeviceNumber,
@@ -672,23 +672,33 @@ internal sealed class ChipWaveProvider : IWaveProvider
     public int Read(byte[] buffer, int offset, int count)
     {
         int channels = WaveFormat.Channels;
-        int frameCount = Math.Min(count / (sizeof(float) * channels), FramesPerBuffer);
+        int totalFrames = count / (sizeof(float) * channels);
+        int framesRemaining = totalFrames;
+        int bytesWritten = 0;
 
-        Array.Clear(_floatBuffer, 0, frameCount * channels);
+        while (framesRemaining > 0)
+        {
+            int frameCount = Math.Min(framesRemaining, FramesPerBuffer);
+            int samplesToRender = frameCount * channels;
+            Array.Clear(_floatBuffer, 0, samplesToRender);
 
-        if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
-            _engine.ChipStreamPlayer.Render(_floatBuffer, frameCount, channels);
-        else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
-            _engine.AudioFilePlayer.Render(_floatBuffer, frameCount, channels);
-        else if (_engine.UseModulePlayer && _engine.ModulePlayer.IsLoaded)
-            _engine.ModulePlayer.Render(_floatBuffer, frameCount);
-        else
-            _engine.Sequencer.Render(_floatBuffer, frameCount);
+            if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
+                _engine.ChipStreamPlayer.Render(_floatBuffer, frameCount, channels);
+            else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
+                _engine.AudioFilePlayer.Render(_floatBuffer, frameCount, channels);
+            else if (_engine.UseModulePlayer && _engine.ModulePlayer.IsLoaded)
+                _engine.ModulePlayer.Render(_floatBuffer, frameCount);
+            else
+                _engine.Sequencer.Render(_floatBuffer, frameCount);
 
-        _engine.OnBufferFilled(_floatBuffer, frameCount);
+            _engine.OnBufferFilled(_floatBuffer, frameCount);
 
-        int byteCount = frameCount * channels * sizeof(float);
-        System.Buffer.BlockCopy(_floatBuffer, 0, buffer, offset, byteCount);
-        return byteCount;
+            int byteCount = samplesToRender * sizeof(float);
+            System.Buffer.BlockCopy(_floatBuffer, 0, buffer, offset + bytesWritten, byteCount);
+            bytesWritten += byteCount;
+            framesRemaining -= frameCount;
+        }
+
+        return bytesWritten;
     }
 }

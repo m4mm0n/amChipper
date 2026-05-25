@@ -52,6 +52,7 @@
     <Content Include="..\..\USER_GUIDE.txt" Link="USER_GUIDE.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\examples\Outlive no2.amc" Link="Examples\Outlive no2.amc" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\examples\Outlive no2.amc')" />
     <Content Include="..\..\c64\DOCUMENTS\Songlengths.txt" Link="Songlengths.txt" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\c64\DOCUMENTS\Songlengths.txt')" />
+    <Content Include="amChipper.openmpt-backend" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" />
   </ItemGroup>
 
   <Target Name="MoveDependencyDllsToLibs" AfterTargets="Build">

@@ -143,6 +143,10 @@ public sealed class ModulePlayer : IModulePlayer
     /// <summary>
     /// Stores or exposes IsLoaded.
     /// </summary>
+    public string BackendName => ModulePlayerFactory.NativeBackendName;
+    /// <summary>
+    /// Stores or exposes IsLoaded.
+    /// </summary>
     public bool IsLoaded => _module != nint.Zero;
     /// <summary>
     /// Executes the OrderCount operation.
