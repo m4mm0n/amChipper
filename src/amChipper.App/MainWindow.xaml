@@ -572,7 +572,8 @@
                           PreviewMouseLeftButtonUp="MixerSlider_PreviewMouseLeftButtonUp"
                           Value="{Binding MasterVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                           VerticalAlignment="Center"/>
-                  <ProgressBar Minimum="0" Maximum="1" Height="5" Margin="0,6,0,0"
+                  <ProgressBar Minimum="0" Maximum="1" Height="7" Margin="0,6,0,0"
+                               Style="{StaticResource FlMeterProgress}"
                                Foreground="#59D98E"
                                Value="{Binding MasterMeterLevel, Mode=OneWay}"/>
                 </StackPanel>
@@ -710,6 +711,7 @@
                                   PreviewMouseLeftButtonUp="MixerSlider_PreviewMouseLeftButtonUp"
                                   Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                            <ProgressBar Minimum="0" Maximum="1" Height="13" Margin="0,6,0,0"
+                                        Style="{StaticResource FlMeterProgress}"
                                         Foreground="#59D98E"
                                         Value="{Binding MeterLevel, Mode=OneWay}"/>
                           <TextBlock Text="{Binding MeterLevel, StringFormat=VU {0:0.000}}"

@@ -234,6 +234,56 @@ public sealed class SongProjectSerializerTests
     }
 
     [Fact]
+    public void NativeChipModule_CanCarryPlaybackCacheWithoutReplacingNativeModel()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "amChipper-tests", $"{Guid.NewGuid():N}.amc");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        try
+        {
+            Song song = Song.CreateDefault(new NewSongOptions
+            {
+                Format = ModuleFormat.XM,
+                Channels = 2,
+                Patterns = 1
+            });
+            song.Title = "Cached XM";
+            song.Patterns[0].SetNote(0, 0, new Note
+            {
+                Pitch = 60,
+                InstrumentIndex = 1,
+                EffectColumn = 0x04,
+                EffectParam = 0x37,
+                VolumeColumn = 0x40
+            });
+            byte[] playbackCache = Enumerable.Range(0, 512).Select(i => (byte)(255 - i % 251)).ToArray();
+
+            NativeChipModuleFile.Save(song, path, playbackCache, ModuleFormat.XM, "XM", ".xm");
+
+            Song loadedSongOnly = NativeChipModuleFile.Load(path);
+            NativeChipModuleLoadResult loaded = NativeChipModuleFile.LoadWithPlaybackCache(path);
+
+            Assert.Equal(ModuleFormat.AmChip, loadedSongOnly.Format);
+            Assert.Equal("AMC", loadedSongOnly.SourceModuleType);
+            Assert.Null(loadedSongOnly.OriginalModuleData);
+            Assert.Equal(ModuleFormat.AmChip, loaded.Song.Format);
+            Assert.Equal("AMC", loaded.Song.SourceModuleType);
+            Assert.Equal(".amc", loaded.Song.SourceModuleExtension);
+            Assert.Null(loaded.Song.OriginalModuleData);
+            Assert.Equal(ModuleFormat.XM, loaded.PlaybackModuleFormat);
+            Assert.Equal("XM", loaded.PlaybackModuleType);
+            Assert.Equal(".xm", loaded.PlaybackModuleExtension);
+            Assert.Equal(playbackCache, loaded.PlaybackModuleData);
+            Assert.Equal(0x37, loaded.Song.Patterns[0].GetNote(0, 0).EffectParam);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void AmcModulePlayer_LoadsNativeModuleAndRendersAudiblePcm()
     {
         string path = Path.Combine(Path.GetTempPath(), "amChipper-tests", $"{Guid.NewGuid():N}.amc");

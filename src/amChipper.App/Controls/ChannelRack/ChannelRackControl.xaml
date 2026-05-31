@@ -55,7 +55,8 @@
                   <TextBlock Text="{Binding EffectSummary}" Foreground="{DynamicResource AccentLight}"
                              FontFamily="Consolas" FontSize="11"
                              Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
-                  <ProgressBar Minimum="0" Maximum="1" Height="4" Margin="0,6,0,0"
+                  <ProgressBar Minimum="0" Maximum="1" Height="6" Margin="0,6,0,0"
+                               Style="{StaticResource FlMeterProgress}"
                                Value="{Binding Track.MeterLevel, Mode=OneWay}"
                                Foreground="{DynamicResource AccentLight}" Background="{DynamicResource BgDeep}"/>
                 </StackPanel>

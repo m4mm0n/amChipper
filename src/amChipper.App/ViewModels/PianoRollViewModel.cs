@@ -68,8 +68,6 @@ public sealed class PianoRollViewModel : BaseViewModel
             OnPropertyChanged(nameof(CurrentPatternName));
             OnPropertyChanged(nameof(CurrentPatternLabel));
             RefreshChannelOptions();
-            if (_main.ProjectSelectFirstNoteChannel)
-                SelectFirstChannelWithNotes();
 
             RefreshActiveInstrument();
             RefreshFromPattern();
@@ -586,8 +584,6 @@ public sealed class PianoRollViewModel : BaseViewModel
     {
         RefreshPatternOptions();
         RefreshChannelOptions();
-        if (_main.ProjectSelectFirstNoteChannel)
-            SelectFirstChannelWithNotes();
 
         RefreshFromPattern();
         if (_main.ProjectAutoZoomPianoRoll)

@@ -2,6 +2,20 @@
 
 This changelog covers user-facing prototype releases and repair passes. It is written as a readable development log rather than as a raw git-derived release log.
 
+## v0.2.5.1 - 31.05.2026
+
+### Playback, Analyzer, Mixer, and AMC Fidelity Hotfix
+
+- Fixed the Tracker Editor playback-follow view so row drawing is clipped below the sticky header; channel labels no longer disappear when auto-scroll reaches the lower half of the screen.
+- Fixed Piano Roll pattern switching so it preserves the current channel/lane instead of auto-selecting channel 1 whenever the pattern changes.
+- Fixed normal Play from a freshly loaded module so the restart-order option no longer jumps playback to the source restart byte at the beginning.
+- Clarified the restart-order setting in English, German, and Norwegian as loop-from-restart behavior.
+- Made Analyzer modes structurally different: Studio keeps the balanced 40-band view, Compact Bars uses shorter grouped/stepped bands, and Peak Focus uses a longer analysis window with stronger peak hold.
+- Reworked mixer and Channel Rack meter updates with attack/release smoothing, note-volume decoding, pitch accents, and a gradient meter style so active channels animate with more useful motion.
+- Added an optional AMC tracker playback cache for imported XM/MOD-style modules. The `.amc` file still saves native amChipper song data, but clean reloads can use cached tracker bytes for libopenmpt playback fidelity instead of falling back immediately to the internal approximation.
+- Added regression coverage proving AMC playback caches do not replace the native song model or rehydrate `OriginalModuleData` into the editable `.amc` song.
+- Bumped the app build to `v0.2.5.1-AMC20260531.2`.
+
 ## v0.2.5.0 - 31.05.2026
 
 ### Native Playback, Editing, Analyzer, and Release Repair

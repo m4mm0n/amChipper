@@ -157,32 +157,40 @@ public sealed class PatternGridCanvas : FrameworkElement
         int visRows = (int)(h / RowH) + 2;
         var rows = ViewModel.Rows;
 
-        for (int ri = firstRow; ri < Math.Min(firstRow + visRows, rows.Count); ri++)
+        dc.PushClip(new RectangleGeometry(new Rect(0, headerH, w, Math.Max(0, h - headerH))));
+        try
         {
-            double y = headerH + ri * RowH - _scrollOffset;
-            var row = rows[ri];
-            bool cursor = ri == ViewModel.CurrentRow;
-
-            // Row background
-            Brush bg = cursor ? BgCursor : (row.IsBarStart ? BgBar : (ri % 2 == 0 ? BgEven : BgOdd));
-            dc.DrawRectangle(bg, null, new Rect(0, y, w, RowH));
-
-            // Row number
-            DrawText(dc, row.RowLabel, RowNumW * 0.5, y + RowH * 0.5, FgRowNum, TextAlignment.Center);
-
-            // Cells per channel
-            for (int ch = 0; ch < row.Cells.Count; ch++)
+            for (int ri = firstRow; ri < Math.Min(firstRow + visRows, rows.Count); ri++)
             {
-                double cx = RowNumW + ch * ChannelW;
-                bool curCh = cursor && ch == ViewModel.CurrentChannel;
-                var cell = row.Cells[ch];
+                double y = headerH + ri * RowH - _scrollOffset;
+                var row = rows[ri];
+                bool cursor = ri == ViewModel.CurrentRow;
 
-                DrawCell(dc, cx, y, cell, curCh, ch);
+                // Row background
+                Brush bg = cursor ? BgCursor : (row.IsBarStart ? BgBar : (ri % 2 == 0 ? BgEven : BgOdd));
+                dc.DrawRectangle(bg, null, new Rect(0, y, w, RowH));
+
+                // Row number
+                DrawText(dc, row.RowLabel, RowNumW * 0.5, y + RowH * 0.5, FgRowNum, TextAlignment.Center);
+
+                // Cells per channel
+                for (int ch = 0; ch < row.Cells.Count; ch++)
+                {
+                    double cx = RowNumW + ch * ChannelW;
+                    bool curCh = cursor && ch == ViewModel.CurrentChannel;
+                    var cell = row.Cells[ch];
+
+                    DrawCell(dc, cx, y, cell, curCh, ch);
+                }
+
+                // Cursor border
+                if (cursor)
+                    dc.DrawRectangle(null, PenCursor, new Rect(0, y, w, RowH));
             }
-
-            // Cursor border
-            if (cursor)
-                dc.DrawRectangle(null, PenCursor, new Rect(0, y, w, RowH));
+        }
+        finally
+        {
+            dc.Pop();
         }
 
         // Scroll bar (simple manual draw)

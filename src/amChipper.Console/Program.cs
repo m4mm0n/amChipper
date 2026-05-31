@@ -412,9 +412,22 @@ internal static class Program
     {
         using var module = LoadModule(options.InputPath, out Song song);
         string exportPath = Path.ChangeExtension(options.ExportPath, NativeChipModuleFile.Extension);
-        NativeChipModuleFile.Save(song, exportPath);
+        if (song.OriginalModuleData is { Length: > 0 })
+        {
+            NativeChipModuleFile.Save(
+                song,
+                exportPath,
+                song.OriginalModuleData,
+                song.Format,
+                song.SourceModuleType,
+                song.SourceModuleExtension);
+        }
+        else
+        {
+            NativeChipModuleFile.Save(song, exportPath);
+        }
 
-        var loaded = NativeChipModuleFile.Load(exportPath);
+        var loaded = NativeChipModuleFile.LoadWithPlaybackCache(exportPath);
         PrintHeader("amChipper AMC export");
         PrintPanel("SOURCE",
         [
@@ -428,10 +441,11 @@ internal static class Program
         [
             $"path       {exportPath}",
             $"loaded     yes",
-            $"title      {loaded.Title}",
+            $"title      {loaded.Song.Title}",
             $"container  amChipper AMC (.amc)",
             $"model      native amChipper song data",
-            $"structure  {loaded.OrderList.Count} orders, {loaded.Patterns.Count} patterns, {loaded.Tracks.Count} channels",
+            $"playback   {(loaded.PlaybackModuleData is null ? "internal" : $"{loaded.PlaybackModuleType} cache, {loaded.PlaybackModuleData.Length} bytes")}",
+            $"structure  {loaded.Song.OrderList.Count} orders, {loaded.Song.Patterns.Count} patterns, {loaded.Song.Tracks.Count} channels",
             $"bytes      {new FileInfo(exportPath).Length}"
         ]);
         return 0;

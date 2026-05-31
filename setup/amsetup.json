@@ -1,7 +1,7 @@
 ﻿{
     "productName":  "amChipper",
     "identifier":  "amchipper",
-    "version":  "0.1.0",
+    "version":  "0.2.5.1",
     "publisher":  "ZeroLinez Softworx",
     "description":  "A Windows/.NET 10 chiptune DAW and tracker with MilkyTracker-style editing and FL Studio-inspired arrangement tools.",
     "defaultInstallDirectory":  "{ProgramFiles}\\{Publisher}\\{ProductName}",
@@ -45,6 +45,7 @@
                                            "amChipper.NsfPlayer.pdb",
                                            "amChipper.pdb",
                                            "amChipper.SidPlayer.pdb",
+                                           "amChipper.TrackerPlayer.pdb",
                                            "QuickLog.pdb",
                                            "tools/amChipper.LanguageTool.pdb"
                                        ]

@@ -31,11 +31,24 @@ public static class NativeChipModuleFile
     /// <summary>
     /// Executes the Save operation.
     /// </summary>
-    public static void Save(Song song, string path)
+    public static void Save(Song song, string path) =>
+        Save(song, path, null, ModuleFormat.Unknown, string.Empty, string.Empty);
+
+    /// <summary>
+    /// Saves a native chip module with an optional tracker playback cache.
+    /// </summary>
+    public static void Save(
+        Song song,
+        string path,
+        byte[]? playbackModuleData,
+        ModuleFormat playbackModuleFormat,
+        string playbackModuleType,
+        string playbackModuleExtension)
     {
         ArgumentNullException.ThrowIfNull(song);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
+        bool hasPlaybackCache = playbackModuleData is { Length: > 0 };
         var moduleSong = song.Clone();
         moduleSong.OriginalModuleData = null;
         moduleSong.Format = ModuleFormat.AmChip;
@@ -53,15 +66,15 @@ public static class NativeChipModuleFile
             Version = CurrentVersion,
             SavedUtc = DateTimeOffset.UtcNow,
             Song = moduleSong,
-            SourceModuleType = string.Empty,
-            SourceModuleExtension = string.Empty,
-            SourceModuleFormat = ModuleFormat.AmChip,
-            SourceModuleBytes = 0
+            SourceModuleType = hasPlaybackCache ? NormalizeSourceType(playbackModuleType, playbackModuleFormat) : string.Empty,
+            SourceModuleExtension = hasPlaybackCache ? NormalizeSourceExtension(playbackModuleExtension, playbackModuleFormat) : string.Empty,
+            SourceModuleFormat = hasPlaybackCache ? playbackModuleFormat : ModuleFormat.AmChip,
+            SourceModuleBytes = hasPlaybackCache ? playbackModuleData!.Length : 0
         };
 
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(file, Options);
         byte[] compressedJson = Compress(json);
-        byte[] compressedSource = [];
+        byte[] compressedSource = hasPlaybackCache ? Compress(playbackModuleData!) : [];
         using var output = File.Create(path);
         output.Write(Magic);
         output.WriteByte(0);
@@ -78,7 +91,7 @@ public static class NativeChipModuleFile
     public static Song Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return Load(File.ReadAllBytes(path));
+        return LoadWithPlaybackCache(path).Song;
     }
 
     /// <summary>
@@ -87,17 +100,37 @@ public static class NativeChipModuleFile
     public static Song Load(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
+        return LoadWithPlaybackCache(bytes).Song;
+    }
+
+    /// <summary>
+    /// Loads a native chip module together with its optional tracker playback cache.
+    /// </summary>
+    public static NativeChipModuleLoadResult LoadWithPlaybackCache(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return LoadWithPlaybackCache(File.ReadAllBytes(path));
+    }
+
+    /// <summary>
+    /// Loads a native chip module byte payload together with its optional tracker playback cache.
+    /// </summary>
+    public static NativeChipModuleLoadResult LoadWithPlaybackCache(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
         if (!IsNativeChipModule(bytes))
             throw new InvalidDataException("Not an amChipper native chip module.");
 
         NativeChipModulePackage package;
+        byte[]? sourceModuleData;
         try
         {
-            (package, _) = ReadSourcePreservingPackage(bytes);
+            (package, sourceModuleData) = ReadSourcePreservingPackage(bytes);
         }
         catch
         {
             package = ReadLegacyPackage(bytes);
+            sourceModuleData = null;
         }
 
         if (package.Version < 1 || package.Version > CurrentVersion)
@@ -110,7 +143,20 @@ public static class NativeChipModuleFile
         song.OriginalModuleData = null;
 
         SongProjectSerializer.Normalize(song);
-        return song;
+        if (sourceModuleData is { Length: > 0 } &&
+            package.SourceModuleBytes > 0 &&
+            package.SourceModuleBytes != sourceModuleData.Length)
+        {
+            throw new InvalidDataException("The native chip module playback cache length is invalid.");
+        }
+
+        bool hasPlaybackCache = sourceModuleData is { Length: > 0 } && package.SourceModuleBytes > 0;
+        return new NativeChipModuleLoadResult(
+            song,
+            hasPlaybackCache ? sourceModuleData : null,
+            hasPlaybackCache ? package.SourceModuleFormat : ModuleFormat.Unknown,
+            hasPlaybackCache ? package.SourceModuleType : string.Empty,
+            hasPlaybackCache ? package.SourceModuleExtension : string.Empty);
     }
 
     /// <summary>
@@ -161,6 +207,31 @@ public static class NativeChipModuleFile
     }
 
     /// <summary>
+    /// Normalizes playback cache source type metadata.
+    /// </summary>
+    private static string NormalizeSourceType(string sourceType, ModuleFormat format)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceType))
+            return sourceType.Trim().ToUpperInvariant();
+
+        return format == ModuleFormat.Unknown ? string.Empty : format.ToString().ToUpperInvariant();
+    }
+
+    /// <summary>
+    /// Normalizes playback cache source extension metadata.
+    /// </summary>
+    private static string NormalizeSourceExtension(string sourceExtension, ModuleFormat format)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceExtension))
+        {
+            string trimmed = sourceExtension.Trim().ToLowerInvariant();
+            return trimmed.StartsWith('.') ? trimmed : $".{trimmed}";
+        }
+
+        return format == ModuleFormat.Unknown ? string.Empty : ModuleFormatCatalog.GetPreferredExtension(format);
+    }
+
+    /// <summary>
     /// Reads the legacy single-stream JSON package.
     /// </summary>
     private static NativeChipModulePackage ReadLegacyPackage(byte[] bytes)
@@ -206,6 +277,42 @@ public static class NativeChipModuleFile
 
         return (package, sourceModuleData);
     }
+}
+
+/// <summary>
+/// Carries a loaded AMC song plus any optional tracker playback cache.
+/// </summary>
+public sealed class NativeChipModuleLoadResult(
+    Song song,
+    byte[]? playbackModuleData,
+    ModuleFormat playbackModuleFormat,
+    string playbackModuleType,
+    string playbackModuleExtension)
+{
+    /// <summary>
+    /// Stores or exposes Song.
+    /// </summary>
+    public Song Song { get; } = song;
+
+    /// <summary>
+    /// Stores or exposes PlaybackModuleData.
+    /// </summary>
+    public byte[]? PlaybackModuleData { get; } = playbackModuleData;
+
+    /// <summary>
+    /// Stores or exposes PlaybackModuleFormat.
+    /// </summary>
+    public ModuleFormat PlaybackModuleFormat { get; } = playbackModuleFormat;
+
+    /// <summary>
+    /// Stores or exposes PlaybackModuleType.
+    /// </summary>
+    public string PlaybackModuleType { get; } = playbackModuleType;
+
+    /// <summary>
+    /// Stores or exposes PlaybackModuleExtension.
+    /// </summary>
+    public string PlaybackModuleExtension { get; } = playbackModuleExtension;
 }
 
 /// <summary>

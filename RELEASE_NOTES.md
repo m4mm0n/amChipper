@@ -1,18 +1,16 @@
-# amChipper v0.2.5.0
+# amChipper v0.2.5.1
 
-This release moves amChipper back to the native original libopenmpt runtime and fixes several broken editing/playback surfaces before rebuilding the Windows and Linux Wine packages.
+This hotfix tightens the v0.2.5 native-libopenmpt release around the reported playback, editor, analyzer, mixer, and AMC round-trip problems.
 
 ## Included
 
-- Native libopenmpt release path restored with OpenMPT 0.8.7 runtime DLLs.
-- Piano Roll tab no longer disrupts active playback or bounces the playhead between song and pattern coordinates.
-- Piano-roll playback can be restarted from the first row with a repeat/replay command.
-- Playlist blocks now draw compact note/effect previews that reflect the pattern lane data.
-- `.amc` now exports real amChipper native song data instead of a hidden original-module wrapper.
-- Analyzer now reports peak, RMS, dominant frequency, spectral centroid, stereo correlation, and clipping status.
-- About/runtime view now reports QuickLog's own version instead of the amChipper build version.
-- Settings import/reset and visible workspace/project settings now reapply their runtime effects.
-- App build bumped to `v0.2.5.0-AMC20260531.1`.
+- Tracker Editor row auto-scroll now clips rows below the header so channel labels stay visible while playback follows the cursor.
+- Piano Roll pattern changes preserve the selected channel instead of jumping back to the first populated lane.
+- The restart-order transport option now loops from the restart order after module end; normal Play from the start seeks order 0.
+- Analyzer modes now differ in window size, band grouping, dB floor, response curve, and peak hold.
+- Mixer and Channel Rack meters now use smoothed attack/release with stronger color meters instead of flat, identical pulses.
+- AMC exports keep the native amChipper song model and may carry a tracker playback cache so clean XM/MOD reloads can play back through libopenmpt with effect fidelity.
+- App build bumped to `v0.2.5.1-AMC20260531.2`.
 
 ## Validation
 

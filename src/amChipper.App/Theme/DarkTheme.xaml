@@ -926,4 +926,42 @@
     <Setter Property="Effect" Value="{DynamicResource PanelShadow}"/>
   </Style>
 
+  <Style x:Key="FlMeterProgress" TargetType="{x:Type ProgressBar}">
+    <Setter Property="Height" Value="7"/>
+    <Setter Property="Minimum" Value="0"/>
+    <Setter Property="Maximum" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentLight}"/>
+    <Setter Property="Background" Value="{DynamicResource BgDeep}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ProgressBar}">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{DynamicResource Border}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  ClipToBounds="True">
+            <Grid x:Name="PART_Track">
+              <Rectangle Fill="#18000000"/>
+              <Border x:Name="PART_Indicator"
+                      HorizontalAlignment="Left"
+                      CornerRadius="3">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#FF3BE37A" Offset="0"/>
+                    <GradientStop Color="#FF60D6FF" Offset="0.50"/>
+                    <GradientStop Color="#FFC77DFF" Offset="0.78"/>
+                    <GradientStop Color="#FFFF7AC8" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Border.Effect>
+                  <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#B970FF" Opacity="0.55"/>
+                </Border.Effect>
+              </Border>
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
 </ResourceDictionary>

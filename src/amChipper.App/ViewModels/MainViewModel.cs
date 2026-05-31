@@ -853,8 +853,7 @@ public sealed class MainViewModel : BaseViewModel
         set
         {
             if (SetField(ref _visualizerPeakHold, Math.Clamp(value, 0.70, 0.995)))
-                foreach (var band in SpectrumBands)
-                    band.PeakHold = _visualizerPeakHold;
+                ApplySpectrumAnalyzerMode();
         }
     }
 
@@ -868,7 +867,11 @@ public sealed class MainViewModel : BaseViewModel
     public string SpectrumAnalyzerMode
     {
         get => _spectrumAnalyzerMode;
-        set => SetField(ref _spectrumAnalyzerMode, NormalizeOption(value, SpectrumAnalyzerModes, "Studio Analyzer"));
+        set
+        {
+            if (SetField(ref _spectrumAnalyzerMode, NormalizeOption(value, SpectrumAnalyzerModes, "Studio Analyzer")))
+                ApplySpectrumAnalyzerMode();
+        }
     }
 
     /// <summary>
@@ -944,6 +947,22 @@ public sealed class MainViewModel : BaseViewModel
         int index = SpectrumAnalyzerModes.IndexOf(SpectrumAnalyzerMode);
         SpectrumAnalyzerMode = SpectrumAnalyzerModes[(index + 1) % SpectrumAnalyzerModes.Count];
         AppLogger.Info($"[Analyzer] Spectrum mode changed to \"{SpectrumAnalyzerMode}\"");
+    }
+
+    /// <summary>
+    /// Applies analyzer-mode presentation settings to all spectrum bands.
+    /// </summary>
+    private void ApplySpectrumAnalyzerMode()
+    {
+        double peakHold = SpectrumAnalyzerMode switch
+        {
+            "Peak Focus" => Math.Max(VisualizerPeakHold, 0.965),
+            "Compact Bars" => Math.Min(VisualizerPeakHold, 0.74),
+            _ => VisualizerPeakHold
+        };
+
+        foreach (var band in SpectrumBands)
+            band.PeakHold = peakHold;
     }
 
     /// <summary>
@@ -1522,6 +1541,18 @@ public sealed class MainViewModel : BaseViewModel
     /// </summary>
     private string? _originalModulePath;
     /// <summary>
+    /// Stores or exposes _originalModuleFormat.
+    /// </summary>
+    private ModuleFormat _originalModuleFormat = ModuleFormat.Unknown;
+    /// <summary>
+    /// Stores or exposes _originalModuleType.
+    /// </summary>
+    private string _originalModuleType = string.Empty;
+    /// <summary>
+    /// Stores or exposes _originalModuleExtension.
+    /// </summary>
+    private string _originalModuleExtension = string.Empty;
+    /// <summary>
     /// Stores or exposes _modulePreviewActive.
     /// </summary>
     private bool _modulePreviewActive;
@@ -2064,6 +2095,7 @@ public sealed class MainViewModel : BaseViewModel
 
         for (int i = 0; i < 40; i++)
             SpectrumBands.Add(new SpectrumBandViewModel(i));
+        ApplySpectrumAnalyzerMode();
 
         RefreshAudioOutputDevices();
         LoadConfiguration(silent: true);
@@ -5192,6 +5224,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         _useOriginalModulePlayback = false;
         _originalModuleData = null;
         _originalModulePath = null;
+        _originalModuleFormat = ModuleFormat.Unknown;
+        _originalModuleType = string.Empty;
+        _originalModuleExtension = string.Empty;
         Audio.UseModulePlayer = false;
         Audio.UseAudioFilePlayer = false;
         Audio.Sequencer.SetSong(_song);
@@ -5226,22 +5261,29 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         {
             if (Path.GetExtension(path).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
             {
-                Song = NativeChipModuleFile.Load(path);
+                var loadedModule = NativeChipModuleFile.LoadWithPlaybackCache(path);
+                Song = loadedModule.Song;
                 FilePath = path;
                 _originalModulePath = path;
-                _originalModuleData = null;
-                _useOriginalModulePlayback = false;
-                Audio.UseModulePlayer = false;
+                _originalModuleData = loadedModule.PlaybackModuleData is null ? null : (byte[])loadedModule.PlaybackModuleData.Clone();
+                _originalModuleFormat = loadedModule.PlaybackModuleFormat;
+                _originalModuleType = loadedModule.PlaybackModuleType;
+                _originalModuleExtension = loadedModule.PlaybackModuleExtension;
+                _useOriginalModulePlayback = _originalModuleData is { Length: > 0 } &&
+                    Audio.ModulePlayer.Load(_originalModuleData, $"{Path.GetFileNameWithoutExtension(path)}{_originalModuleExtension}");
+                Audio.UseModulePlayer = _useOriginalModulePlayback;
                 Audio.UseAudioFilePlayer = false;
                 Audio.Sequencer.SetSong(_song);
                 UpdateSourceFormatReadout();
                 UpdateRuntimeTempoReadout();
                 IsDirty = false;
                 ClearHistory();
-                StatusText = $"Loaded native chip module: {Path.GetFileName(path)}";
+                StatusText = _useOriginalModulePlayback
+                    ? $"Loaded native chip module with tracker playback cache: {Path.GetFileName(path)}"
+                    : $"Loaded native chip module: {Path.GetFileName(path)}";
                 AppLogger.Info(
                     $"[Document] Loaded AMC path=\"{path}\" title=\"{_song.Title}\" " +
-                    $"format={_song.Format} sourceBytes={_originalModuleData?.Length ?? 0} " +
+                    $"format={_song.Format} playbackCacheBytes={_originalModuleData?.Length ?? 0} playbackCacheFormat={_originalModuleFormat} " +
                     $"instruments={_song.Instruments.Count} tracks={_song.Tracks.Count} patterns={_song.Patterns.Count} blocks={_song.Tracks.Sum(t => t.Blocks.Count)}");
                 return;
             }
@@ -5252,6 +5294,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 FilePath = path;
                 _originalModulePath = path;
                 _originalModuleData = _song.OriginalModuleData is null ? null : (byte[])_song.OriginalModuleData.Clone();
+                _originalModuleFormat = _originalModuleData is null ? ModuleFormat.Unknown : _song.Format;
+                _originalModuleType = _originalModuleData is null ? string.Empty : _song.SourceModuleType;
+                _originalModuleExtension = _originalModuleData is null ? string.Empty : _song.SourceModuleExtension;
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
                 Audio.UseAudioFilePlayer = false;
@@ -5288,6 +5333,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 FilePath = path;
                 _originalModulePath = path;
                 _originalModuleData = (byte[])data.Clone();
+                _originalModuleFormat = _song.Format;
+                _originalModuleType = _song.SourceModuleType;
+                _originalModuleExtension = _song.SourceModuleExtension;
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
                 Audio.UseAudioFilePlayer = false;
@@ -5315,6 +5363,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                     _originalModulePath = path;
                     _useOriginalModulePlayback = true;
                     _originalModuleData = (byte[])data.Clone();
+                    _originalModuleFormat = _song.Format;
+                    _originalModuleType = _song.SourceModuleType;
+                    _originalModuleExtension = _song.SourceModuleExtension;
                     Audio.UseModulePlayer = true;
                     UpdateSourceFormatReadout();
                     UpdateRuntimeTempoReadout();
@@ -5659,11 +5710,16 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 }
                 else if (string.Equals(Path.GetExtension(path), NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
                 {
-                    NativeChipModuleFile.Save(_song, path);
+                    if (TryCreateAmcPlaybackCache(out byte[] playbackCache, out ModuleFormat playbackFormat, out string playbackType, out string playbackExtension))
+                        NativeChipModuleFile.Save(_song, path, playbackCache, playbackFormat, playbackType, playbackExtension);
+                    else
+                        NativeChipModuleFile.Save(_song, path);
                     FilePath = path;
                     IsDirty = false;
                     StatusText = $"Saved native chip module: {Path.GetFileName(path)}";
-                    AppLogger.Info($"[Document] SaveAs AMC path=\"{path}\" title=\"{_song.Title}\"");
+                    AppLogger.Info(
+                        $"[Document] SaveAs AMC path=\"{path}\" title=\"{_song.Title}\" " +
+                        $"playbackCacheBytes={(playbackCache?.Length ?? 0)} playbackCacheFormat={playbackFormat}");
                 }
                 else
                 {
@@ -5818,15 +5874,105 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
 
         try
         {
-            NativeChipModuleFile.Save(_song, dlg.FileName);
+            if (TryCreateAmcPlaybackCache(out byte[] playbackCache, out ModuleFormat playbackFormat, out string playbackType, out string playbackExtension))
+                NativeChipModuleFile.Save(_song, dlg.FileName, playbackCache, playbackFormat, playbackType, playbackExtension);
+            else
+                NativeChipModuleFile.Save(_song, dlg.FileName);
             StatusText = $"Exported native chip module: {Path.GetFileName(dlg.FileName)}";
-            AppLogger.Info($"[Document] Exported AMC path=\"{dlg.FileName}\" patterns={_song.Patterns.Count} tracks={_song.Tracks.Count}");
+            AppLogger.Info(
+                $"[Document] Exported AMC path=\"{dlg.FileName}\" patterns={_song.Patterns.Count} tracks={_song.Tracks.Count} " +
+                $"playbackCacheBytes={(playbackCache?.Length ?? 0)} playbackCacheFormat={playbackFormat}");
         }
         catch (Exception ex)
         {
             AppLogger.Error(ex, "Failed to export native chip module");
             MessageBox.Show($"Error exporting native chip module:\n{ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// Creates an optional tracker playback cache for AMC exports when one can be kept consistent.
+    /// </summary>
+    private bool TryCreateAmcPlaybackCache(
+        out byte[] playbackCache,
+        out ModuleFormat playbackFormat,
+        out string playbackType,
+        out string playbackExtension)
+    {
+        playbackCache = [];
+        playbackFormat = ModuleFormat.Unknown;
+        playbackType = string.Empty;
+        playbackExtension = string.Empty;
+
+        if (_song.Format == ModuleFormat.XM)
+        {
+            if (_originalModuleData is not null &&
+                XmModulePatternPatcher.TryCreatePatchedModule(_song, _originalModuleData, out playbackCache))
+            {
+                playbackFormat = ModuleFormat.XM;
+                playbackType = "XM";
+                playbackExtension = ".xm";
+                return true;
+            }
+
+            using var stream = new MemoryStream();
+            XmModuleExporter.Save(_song, stream, CreateXmExportOptions());
+            playbackCache = stream.ToArray();
+            playbackFormat = ModuleFormat.XM;
+            playbackType = "XM";
+            playbackExtension = ".xm";
+            return playbackCache.Length > 0;
+        }
+
+        if (_song.Format == ModuleFormat.MOD && _originalModuleData is not null)
+        {
+            if (!IsDirty &&
+                _originalModuleData.Length > 0)
+            {
+                playbackCache = (byte[])_originalModuleData.Clone();
+                playbackFormat = ModuleFormat.MOD;
+                playbackType = "MOD";
+                playbackExtension = ".mod";
+                return true;
+            }
+
+            if (ModModulePatternPatcher.TryCreatePatchedModule(_song, _originalModuleData, out playbackCache))
+            {
+                playbackFormat = ModuleFormat.MOD;
+                playbackType = "MOD";
+                playbackExtension = ".mod";
+                return true;
+            }
+        }
+
+        if (_song.Format == ModuleFormat.AmChip &&
+            !IsDirty &&
+            _originalModuleData is { Length: > 0 } &&
+            _originalModuleFormat is ModuleFormat.XM or ModuleFormat.MOD or ModuleFormat.IT or ModuleFormat.S3M or ModuleFormat.OpenMpt)
+        {
+            playbackCache = (byte[])_originalModuleData.Clone();
+            playbackFormat = _originalModuleFormat;
+            playbackType = string.IsNullOrWhiteSpace(_originalModuleType)
+                ? playbackFormat.ToString().ToUpperInvariant()
+                : _originalModuleType;
+            playbackExtension = ModuleFormatCatalog.GetPreferredExtension(playbackFormat, _originalModuleExtension);
+            return true;
+        }
+
+        if (!IsDirty &&
+            _originalModuleData is { Length: > 0 } &&
+            _song.Format is ModuleFormat.IT or ModuleFormat.S3M or ModuleFormat.OpenMpt)
+        {
+            playbackCache = (byte[])_originalModuleData.Clone();
+            playbackFormat = _song.Format;
+            playbackType = string.IsNullOrWhiteSpace(_song.SourceModuleType)
+                ? playbackFormat.ToString().ToUpperInvariant()
+                : _song.SourceModuleType;
+            playbackExtension = ModuleFormatCatalog.GetPreferredExtension(playbackFormat, _song.SourceModuleExtension);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -7079,7 +7225,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         string extension = Path.GetExtension(FilePath);
         string source = extension.Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase)
-            ? "amChipper AMC native module | internal sequencer"
+            ? _originalModuleData is null
+                ? "amChipper AMC native module | internal sequencer"
+                : $"amChipper AMC native module | cached {_originalModuleFormat} playback"
             : extension.Equals(SongProjectSerializer.Extension, StringComparison.OrdinalIgnoreCase)
             ? "amChipper compressed project | internal sequencer"
             : _originalModuleData is null
@@ -7340,7 +7488,14 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         int bandCount = SpectrumBands.Count;
         int channels = 2;
         int availableFrames = Math.Min(sampleCount / channels, buffer.Length / channels);
-        int frames = Math.Min(availableFrames, SpectrumAnalyzerMode == "Compact Bars" ? 512 : 1024);
+        string analyzerMode = SpectrumAnalyzerMode;
+        int desiredFrames = analyzerMode switch
+        {
+            "Peak Focus" => 2048,
+            "Compact Bars" => 384,
+            _ => 1024
+        };
+        int frames = Math.Min(availableFrames, desiredFrames);
         if (frames <= 8)
             return;
 
@@ -7373,20 +7528,22 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 clipped++;
         }
 
-        double analyzerLift = SpectrumAnalyzerMode switch
+        double analyzerLift = analyzerMode switch
         {
-            "Peak Focus" => 1.28,
-            "Compact Bars" => 1.08,
+            "Peak Focus" => 1.34,
+            "Compact Bars" => 1.02,
             _ => 1.18
         };
         double magnitudeSum = 0;
         double weightedHz = 0;
         double dominantHz = 0;
         double dominantMagnitude = 0;
+        int effectiveBands = analyzerMode == "Compact Bars" ? Math.Max(1, bandCount / 2) : bandCount;
 
         for (int band = 0; band < bandCount; band++)
         {
-            double normalized = (band + 0.5) / bandCount;
+            int analysisBand = analyzerMode == "Compact Bars" ? band / 2 : band;
+            double normalized = (analysisBand + 0.5) / effectiveBands;
             double hz = minHz * Math.Pow(maxHz / minHz, normalized);
             double omega = 2.0 * Math.PI * hz / sampleRate;
             double re = 0;
@@ -7415,13 +7572,37 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             }
 
             double db = 20.0 * Math.Log10(Math.Max(magnitude * analyzerLift * VisualizerIntensity, 0.000001));
-            double shaped = Math.Clamp((db + 72.0) / 72.0, 0, 1);
-            shaped = Math.Pow(shaped, 0.72);
+            double floor = analyzerMode switch
+            {
+                "Peak Focus" => -84.0,
+                "Compact Bars" => -54.0,
+                _ => -72.0
+            };
+            double shaped = Math.Clamp((db - floor) / -floor, 0, 1);
+            shaped = analyzerMode switch
+            {
+                "Peak Focus" => Math.Pow(shaped, 0.48),
+                "Compact Bars" => Math.Pow(shaped, 1.35),
+                _ => Math.Pow(shaped, 0.72)
+            };
+            if (analyzerMode == "Compact Bars")
+                shaped = Math.Round(shaped * 8.0) / 8.0;
 
             double previous = SpectrumBands[band].Level;
-            double release = SpectrumAnalyzerMode == "Peak Focus" ? 0.86 : 0.80;
+            double attack = analyzerMode switch
+            {
+                "Peak Focus" => 0.86,
+                "Compact Bars" => 0.78,
+                _ => 0.62
+            };
+            double release = analyzerMode switch
+            {
+                "Peak Focus" => 0.94,
+                "Compact Bars" => 0.60,
+                _ => 0.80
+            };
             SpectrumBands[band].Level = shaped >= previous
-                ? previous + (shaped - previous) * 0.62
+                ? previous + (shaped - previous) * attack
                 : Math.Max(shaped, previous * release);
         }
 
@@ -7459,6 +7640,41 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         hz >= 1000 ? $"{hz / 1000.0:0.##} kHz" : $"{hz:0} Hz";
 
     /// <summary>
+    /// Smooths a track meter toward a target using separate attack and release coefficients.
+    /// </summary>
+    private static void SetTrackMeterLevel(Track track, double target, double attack = 0.55, double release = 0.18)
+    {
+        target = Math.Clamp(target, 0d, 1d);
+        attack = Math.Clamp(attack, 0.01, 1d);
+        release = Math.Clamp(release, 0.01, 1d);
+
+        double current = track.MeterLevel;
+        double coefficient = target >= current ? attack : release;
+        double next = current + (target - current) * coefficient;
+        if (target <= 0.0001)
+            next = current * (1.0 - release);
+
+        track.MeterLevel = Math.Clamp(next, 0d, 1d);
+    }
+
+    /// <summary>
+    /// Resolves a tracker note's visible meter strength from note, volume column, and note-off data.
+    /// </summary>
+    private static double ResolveTrackerNoteVolume(Note note)
+    {
+        double volume = note.Volume <= 64 ? note.Volume / 64.0 : 0.62;
+        if (note.VolumeColumn is >= 0x10 and <= 0x50)
+            volume = Math.Max(volume, (note.VolumeColumn - 0x10) / 64.0);
+        else if (note.VolumeColumn is > 0 and <= 64)
+            volume = Math.Max(volume, note.VolumeColumn / 64.0);
+
+        if (note.Pitch is <= 0 or >= (byte)SpecialNote.NoteOff)
+            volume *= 0.45;
+
+        return Math.Clamp(volume, 0d, 1d);
+    }
+
+    /// <summary>
     /// Executes the PulseModuleTrackMeters operation.
     /// </summary>
     private void PulseModuleTrackMeters(int patternIndex, int row)
@@ -7484,12 +7700,12 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             if (!active)
                 continue;
 
-            double noteVolume = note.Volume <= 64 ? note.Volume / 64.0 : 0.86;
+            double noteVolume = ResolveTrackerNoteVolume(note);
             double trackVolume = _song.Tracks[channel].Volume / 128.0;
             double pulse = note.Pitch is > 0 and < (byte)SpecialNote.NoteOff
-                ? Math.Clamp(noteVolume * trackVolume, 0.55, 1.0)
-                : Math.Clamp(noteVolume * trackVolume, 0.25, 0.8);
-            _song.Tracks[channel].MeterLevel = Math.Max(_song.Tracks[channel].MeterLevel, pulse);
+                ? Math.Clamp(noteVolume * trackVolume, 0.18, 1.0)
+                : Math.Clamp(noteVolume * trackVolume, 0.06, 0.72);
+            SetTrackMeterLevel(_song.Tracks[channel], pulse, attack: 0.68, release: 0.16);
             _song.Tracks[channel].EffectSummary = BuildLiveCellSummary(note);
         }
     }
@@ -7539,26 +7755,27 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         {
             if (channel >= channels)
             {
-                _song.Tracks[channel].MeterLevel *= 0.90;
+                SetTrackMeterLevel(_song.Tracks[channel], 0, release: 0.13);
                 continue;
             }
 
             if (TryResolveActiveCell(pattern, row, channel, out var activeNote, out int ageRows))
             {
-                double noteVolume = activeNote.Volume <= 64 ? activeNote.Volume / 64.0 : 0.78;
-                if (activeNote.VolumeColumn is > 0 and <= 64)
-                    noteVolume = Math.Max(noteVolume, activeNote.VolumeColumn / 64.0);
+                double noteVolume = ResolveTrackerNoteVolume(activeNote);
                 double trackVolume = _song.Tracks[channel].Volume / 128.0;
-                double ageDecay = Math.Pow(0.965, Math.Max(0, ageRows));
-                double level = Math.Clamp(noteVolume * trackVolume * masterLift * ageDecay, 0.10, 1.0);
-                _song.Tracks[channel].MeterLevel = preferExistingPeaks
-                    ? Math.Max(_song.Tracks[channel].MeterLevel * 0.78, level)
-                    : level;
+                double transient = Math.Pow(0.84, Math.Max(0, ageRows));
+                double pitchAccent = activeNote.Pitch is > 0 and < (byte)SpecialNote.NoteOff
+                    ? 0.88 + activeNote.Pitch % 12 / 11.0 * 0.12
+                    : 0.45;
+                double level = Math.Clamp(noteVolume * trackVolume * (0.25 + masterLift * 0.75) * transient * pitchAccent, 0, 1.0);
+                if (preferExistingPeaks)
+                    level = Math.Max(_song.Tracks[channel].MeterLevel * 0.58, level);
+                SetTrackMeterLevel(_song.Tracks[channel], level, attack: ageRows == 0 ? 0.72 : 0.38, release: 0.15);
                 _song.Tracks[channel].EffectSummary = BuildLiveCellSummary(activeNote);
             }
             else
             {
-                _song.Tracks[channel].MeterLevel *= 0.90;
+                SetTrackMeterLevel(_song.Tracks[channel], 0, release: 0.13);
             }
         }
     }
@@ -7674,7 +7891,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     private void DecayModuleTrackMeters()
     {
         foreach (var track in _song.Tracks)
-            track.MeterLevel *= 0.94;
+            SetTrackMeterLevel(track, 0, release: 0.11);
     }
 
     /// <summary>
@@ -7699,12 +7916,12 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 continue;
 
             usedNativeVu = true;
-            double boosted = Math.Clamp(vu * 2.4, 0, 1);
-            _song.Tracks[i].MeterLevel = Math.Max(_song.Tracks[i].MeterLevel * 0.72, boosted);
+            double boosted = Math.Clamp(Math.Pow(vu, 0.55) * 1.18 * VisualizerIntensity, 0, 1);
+            SetTrackMeterLevel(_song.Tracks[i], boosted, attack: 0.58, release: 0.20);
         }
 
         for (int i = count; i < _song.Tracks.Count; i++)
-            _song.Tracks[i].MeterLevel *= 0.94;
+            SetTrackMeterLevel(_song.Tracks[i], 0, release: 0.11);
 
         if (!usedNativeVu)
         {
@@ -8272,7 +8489,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         for (int i = 0; i < _song.Tracks.Count; i++)
         {
             double level = i < trackLevels.Length ? trackLevels[i] : 0d;
-            _song.Tracks[i].MeterLevel = level;
+            SetTrackMeterLevel(_song.Tracks[i], Math.Pow(Math.Clamp(level, 0d, 1d), 0.62), attack: 0.62, release: 0.20);
         }
 
         MasterMeterLevel = masterLevel;
@@ -8486,13 +8703,6 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         if (!Audio.ModulePlayer.IsLoaded)
             return;
-
-        if (StartAtRestartOrder && beat <= 0.001 && _song.RestartOrder >= 0)
-        {
-            AppLogger.Info($"[Transport] Seeking to tracker restart order {_song.RestartOrder}");
-            Audio.ModulePlayer.SeekToOrder(_song.RestartOrder, 0);
-            return;
-        }
 
         if (TryResolveOrderAtBeat(beat, out int order, out int row))
         {
