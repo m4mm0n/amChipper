@@ -144,6 +144,18 @@ public sealed class InternalSequencer
     }
 
     /// <summary>
+    /// Reports whether note-preview voices are currently active.
+    /// </summary>
+    public bool HasPreviewVoices
+    {
+        get
+        {
+            lock (_lock)
+                return _voices.Any(v => v.Channel >= _previewChannel && !v.IsFinished);
+        }
+    }
+
+    /// <summary>
     /// Executes the EventHandler operation.
     /// </summary>
     public event EventHandler<(int row, int pattern, double beat)>? RowAdvanced;

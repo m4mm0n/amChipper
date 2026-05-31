@@ -55,6 +55,11 @@
                 Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                 Command="{Binding PlayLaneCommand}"
                 ToolTip="{Binding DataContext[TipPlayPianoRollPattern], RelativeSource={RelativeSource AncestorType=Window}}"/>
+        <Button Content="↻" MinWidth="30"
+                Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                Margin="4,0,0,0"
+                Command="{Binding RepeatLaneCommand}"
+                ToolTip="Restart piano-roll playback from the first row"/>
         <Button Content="■" MinWidth="30"
                 Height="{Binding DataContext.EditorToolButtonHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                 Margin="4,0,0,0"

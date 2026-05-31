@@ -9,7 +9,7 @@ on:
       tag:
         description: Release tag to package
         required: true
-        default: v0.2.4.0-AMC20260524.2
+        default: v0.2.5.0
 
 permissions:
   contents: write
@@ -38,16 +38,16 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore .\amChipper.sln
+        run: dotnet restore .\amChipper.sln -p:UseManagedLibOpenMpt=false
 
       - name: Build
-        run: dotnet build .\amChipper.sln -c Release -p:Platform=x64 --no-restore
+        run: dotnet build .\amChipper.sln -c Release -p:Platform=x64 -p:UseManagedLibOpenMpt=false --no-restore
 
       - name: Test
-        run: dotnet test .\amChipper.sln -c Release -p:Platform=x64 --no-build
+        run: dotnet test .\amChipper.sln -c Release -p:Platform=x64 -p:UseManagedLibOpenMpt=false --no-build
 
       - name: Publish Windows app
-        run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\artifacts\publish\win-x64
+        run: dotnet publish .\src\amChipper.App\amChipper.App.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -p:UseManagedLibOpenMpt=false -o .\artifacts\publish\win-x64
 
       - name: Publish language tool
         run: dotnet publish .\src\amChipper.LanguageTool\amChipper.LanguageTool.csproj -c Release -r win-x64 --self-contained false -p:Platform=x64 -o .\artifacts\publish\win-x64\tools
@@ -63,7 +63,7 @@ jobs:
 
           $libs = Join-Path $publish "libs"
           New-Item -ItemType Directory -Path $libs -Force | Out-Null
-          $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.6+release.dev.windows.vs2022.zip"
+          $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.7+release.dev.windows.vs2022.zip"
           $zipPath = Join-Path $env:TEMP ("amchipper-libopenmpt-" + [guid]::NewGuid().ToString("N") + ".zip")
           Invoke-WebRequest -Uri $url -OutFile $zipPath -UserAgent "amChipperReleaseWorkflow/0.2"
           Add-Type -AssemblyName System.IO.Compression.FileSystem

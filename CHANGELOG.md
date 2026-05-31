@@ -1,6 +1,24 @@
 # amChipper Changelog
 
-This changelog covers the implementation work performed from 30.04.2026 through 03.05.2026. It is written as a user-facing development log for the current prototype rather than as a git-derived release log.
+This changelog covers user-facing prototype releases and repair passes. It is written as a readable development log rather than as a raw git-derived release log.
+
+## v0.2.5.0 - 31.05.2026
+
+### Native Playback, Editing, Analyzer, and Release Repair
+
+- Switched the release lane back to the original native `libopenmpt` runtime and updated Windows/Linux Wine workflow packaging to use native OpenMPT 0.8.7.
+- Fixed Piano Roll tab/playback instability by preventing piano-roll note audition from stealing the active module/chip/audio playback route.
+- Fixed piano-roll playhead bouncing between song-time and local pattern-time while playback is running.
+- Added a dedicated piano-roll repeat/replay command and kept module-backed pattern/piano-roll previews looping instead of falling out of scope.
+- Upgraded playlist blocks with mini piano-roll-style note and effect previews so patterns are visually recognizable in the arrangement.
+- Made Select mode move and resize playlist blocks directly, while Draw mode stays focused on placing new blocks.
+- Changed `.amc` export/load semantics so amChipper Native Chip modules save the normalized amChipper song model instead of hiding a copy of the original tracker file inside a wrapper.
+- Updated About/format text and console AMC output to describe `.amc` as native amChipper song data.
+- Expanded the Analyzer with peak dBFS, RMS dBFS, dominant frequency, spectral centroid, stereo correlation, and clip-count readouts.
+- Fixed About runtime version display for QuickLog so it reports QuickLog's own file version instead of the amChipper app build.
+- Wired visible settings back into behavior: workspace density updates editor sizing, toolbar scaling maps to tool button size, piano-roll auto-zoom/select-first-channel act immediately, config imports reapply audio/log/UI/library/autosave effects, and restart-order playback preference is persisted.
+- Added native-mode regression coverage for AMC native export semantics and piano-roll preview voice lifecycle.
+- Bumped the app build to `v0.2.5.0-AMC20260531.1`.
 
 ## v0.2.4.0-AMC20260524.2 - 24.05.2026
 

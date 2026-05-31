@@ -212,6 +212,9 @@ public partial class MainWindow : Window
     private void View_PianoRoll(object sender, RoutedEventArgs e)
     {
         MainTabControl.SelectedItem = PianoRollTab;
+        if (_vm.IsPlaying)
+            return;
+
         int patternIndex = Math.Clamp(_vm.SongEditor.SelectedPatternIndex, 0, Math.Max(_vm.Song.Patterns.Count - 1, 0));
         if (_vm.PianoRoll.CurrentPatternIndex != patternIndex)
             _vm.PianoRoll.SetCurrentPattern(patternIndex);

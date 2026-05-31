@@ -36,17 +36,11 @@ public static class NativeChipModuleFile
         ArgumentNullException.ThrowIfNull(song);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        byte[]? sourceModuleData = song.OriginalModuleData is { Length: > 0 }
-            ? (byte[])song.OriginalModuleData.Clone()
-            : null;
         var moduleSong = song.Clone();
         moduleSong.OriginalModuleData = null;
-        if (sourceModuleData is null)
-        {
-            moduleSong.Format = ModuleFormat.AmChip;
-            moduleSong.SourceModuleType = "AMC";
-            moduleSong.SourceModuleExtension = Extension;
-        }
+        moduleSong.Format = ModuleFormat.AmChip;
+        moduleSong.SourceModuleType = "AMC";
+        moduleSong.SourceModuleExtension = Extension;
 
         SongProjectSerializer.Normalize(moduleSong);
 
@@ -59,15 +53,15 @@ public static class NativeChipModuleFile
             Version = CurrentVersion,
             SavedUtc = DateTimeOffset.UtcNow,
             Song = moduleSong,
-            SourceModuleType = sourceModuleData is null ? string.Empty : song.SourceModuleType,
-            SourceModuleExtension = sourceModuleData is null ? string.Empty : song.SourceModuleExtension,
-            SourceModuleFormat = sourceModuleData is null ? ModuleFormat.Unknown : song.Format,
-            SourceModuleBytes = sourceModuleData?.Length ?? 0
+            SourceModuleType = string.Empty,
+            SourceModuleExtension = string.Empty,
+            SourceModuleFormat = ModuleFormat.AmChip,
+            SourceModuleBytes = 0
         };
 
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(file, Options);
         byte[] compressedJson = Compress(json);
-        byte[] compressedSource = sourceModuleData is null ? [] : Compress(sourceModuleData);
+        byte[] compressedSource = [];
         using var output = File.Create(path);
         output.Write(Magic);
         output.WriteByte(0);
@@ -97,37 +91,23 @@ public static class NativeChipModuleFile
             throw new InvalidDataException("Not an amChipper native chip module.");
 
         NativeChipModulePackage package;
-        byte[]? sourceModuleData;
         try
         {
-            (package, sourceModuleData) = ReadSourcePreservingPackage(bytes);
+            (package, _) = ReadSourcePreservingPackage(bytes);
         }
         catch
         {
             package = ReadLegacyPackage(bytes);
-            sourceModuleData = null;
         }
 
         if (package.Version < 1 || package.Version > CurrentVersion)
             throw new InvalidDataException($"Unsupported native chip module version: {package.Version}.");
 
         var song = package.Song ?? throw new InvalidDataException("The native chip module does not contain a song.");
-        if (sourceModuleData is { Length: > 0 })
-        {
-            song.Format = package.SourceModuleFormat == ModuleFormat.Unknown ? song.Format : package.SourceModuleFormat;
-            song.SourceModuleType = string.IsNullOrWhiteSpace(package.SourceModuleType) ? song.SourceModuleType : package.SourceModuleType;
-            song.SourceModuleExtension = string.IsNullOrWhiteSpace(package.SourceModuleExtension)
-                ? song.SourceModuleExtension
-                : package.SourceModuleExtension;
-            song.OriginalModuleData = sourceModuleData;
-        }
-        else
-        {
-            song.Format = ModuleFormat.AmChip;
-            song.SourceModuleType = "AMC";
-            song.SourceModuleExtension = Extension;
-            song.OriginalModuleData = null;
-        }
+        song.Format = ModuleFormat.AmChip;
+        song.SourceModuleType = "AMC";
+        song.SourceModuleExtension = Extension;
+        song.OriginalModuleData = null;
 
         SongProjectSerializer.Normalize(song);
         return song;

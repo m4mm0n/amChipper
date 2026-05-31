@@ -187,7 +187,7 @@ public sealed class SongProjectSerializerTests
     }
 
     [Fact]
-    public void NativeChipModule_PreservesEmbeddedSourceModuleForExactPlayback()
+    public void NativeChipModule_ExportsActualAmChipModelWithoutEmbeddedSource()
     {
         string path = Path.Combine(Path.GetTempPath(), "amChipper-tests", $"{Guid.NewGuid():N}.amc");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -217,10 +217,10 @@ public sealed class SongProjectSerializerTests
             NativeChipModuleFile.Save(song, path);
             Song loaded = NativeChipModuleFile.Load(path);
 
-            Assert.Equal(ModuleFormat.XM, loaded.Format);
-            Assert.Equal("XM", loaded.SourceModuleType);
-            Assert.Equal(".xm", loaded.SourceModuleExtension);
-            Assert.Equal(originalModule, loaded.OriginalModuleData);
+            Assert.Equal(ModuleFormat.AmChip, loaded.Format);
+            Assert.Equal("AMC", loaded.SourceModuleType);
+            Assert.Equal(".amc", loaded.SourceModuleExtension);
+            Assert.Null(loaded.OriginalModuleData);
             Assert.Equal(EffectCommand.Vibrato, loaded.Patterns[0].GetNote(0, 0).Effect);
             Assert.Equal(0x04, loaded.Patterns[0].GetNote(0, 0).EffectColumn);
             Assert.Equal(0x37, loaded.Patterns[0].GetNote(0, 0).EffectParam);

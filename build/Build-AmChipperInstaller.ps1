@@ -175,7 +175,7 @@ function Ensure-LibOpenMpt {
         throw "libopenmpt.dll is missing and -SkipLibOpenMptDownload was specified."
     }
 
-    $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.6+release.dev.windows.vs2022.zip"
+    $url = "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.7+release.dev.windows.vs2022.zip"
     $zipPath = Join-Path $env:TEMP ("amchipper-libopenmpt-" + [guid]::NewGuid().ToString("N") + ".zip")
     Write-Host ">> downloading libopenmpt runtime DLLs"
     Invoke-WebRequest -Uri $url -OutFile $zipPath -UserAgent "amChipperInstallerBuilder/0.2"
@@ -374,15 +374,15 @@ if (-not (Test-Path -LiteralPath $StubPath)) {
 }
 
 if (-not $SkipRestore) {
-    Invoke-Checked -FilePath "dotnet" -ArgumentList @("restore", $SolutionFile) -WorkingDirectory $RepoRoot
+    Invoke-Checked -FilePath "dotnet" -ArgumentList @("restore", $SolutionFile, "-p:UseManagedLibOpenMpt=false") -WorkingDirectory $RepoRoot
 }
 
 if (-not $SkipBuild) {
-    Invoke-Checked -FilePath "dotnet" -ArgumentList @("build", $SolutionFile, "-c", $Configuration, "-p:Platform=$Platform", "--no-restore") -WorkingDirectory $RepoRoot
+    Invoke-Checked -FilePath "dotnet" -ArgumentList @("build", $SolutionFile, "-c", $Configuration, "-p:Platform=$Platform", "-p:UseManagedLibOpenMpt=false", "--no-restore") -WorkingDirectory $RepoRoot
 }
 
 if (-not $SkipTests) {
-    Invoke-Checked -FilePath "dotnet" -ArgumentList @("test", $SolutionFile, "-c", $Configuration, "-p:Platform=$Platform", "--no-build") -WorkingDirectory $RepoRoot
+    Invoke-Checked -FilePath "dotnet" -ArgumentList @("test", $SolutionFile, "-c", $Configuration, "-p:Platform=$Platform", "-p:UseManagedLibOpenMpt=false", "--no-build") -WorkingDirectory $RepoRoot
 }
 
 if (-not $SkipPublish) {
@@ -396,6 +396,7 @@ if (-not $SkipPublish) {
         "-r", $RuntimeIdentifier,
         "--self-contained", "false",
         "-p:Platform=$Platform",
+        "-p:UseManagedLibOpenMpt=false",
         "-o", $PublishDir
     ) -WorkingDirectory $RepoRoot
 

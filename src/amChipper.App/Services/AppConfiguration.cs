@@ -73,6 +73,10 @@ public sealed class AppConfiguration
     /// </summary>
     public bool PreferRestartOnStop { get; set; } = true;
     /// <summary>
+    /// Starts tracker playback from the module restart order when available.
+    /// </summary>
+    public bool StartAtRestartOrder { get; set; }
+    /// <summary>
     /// Stores or exposes SoloSelectedPianoRollChannel.
     /// </summary>
     public bool SoloSelectedPianoRollChannel { get; set; } = true;

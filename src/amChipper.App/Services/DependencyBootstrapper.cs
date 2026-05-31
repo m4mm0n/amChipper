@@ -36,7 +36,7 @@ public sealed class DependencyBootstrapper
     /// Update this when bumping versions.
     /// </summary>
     private const string OpenmptFallbackZip =
-        "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.6+release.dev.windows.vs2022.zip";
+        "https://lib.openmpt.org/files/libopenmpt/dev/libopenmpt-0.8.7+release.dev.windows.vs2022.zip";
 
     /// <summary>
     /// Stores or exposes string.

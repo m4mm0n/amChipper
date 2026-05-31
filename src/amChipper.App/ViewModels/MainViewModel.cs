@@ -657,7 +657,16 @@ public sealed class MainViewModel : BaseViewModel
     public string ThemeToolbarScaling
     {
         get => _themeToolbarScaling;
-        set => SetField(ref _themeToolbarScaling, NormalizeOption(value, ScalingModeOptions, "Main"));
+        set
+        {
+            string normalized = NormalizeOption(value, ScalingModeOptions, "Main");
+            if (SetField(ref _themeToolbarScaling, normalized))
+            {
+                if (normalized is "Compact" or "Large")
+                    ToolbarButtonSize = normalized;
+                ApplyUiChromeSettings();
+            }
+        }
     }
 
     private string _themeAnimationMode = "Ultrasmooth";
@@ -687,7 +696,11 @@ public sealed class MainViewModel : BaseViewModel
     public bool ThemeHighVisibility
     {
         get => _themeHighVisibility;
-        set => SetField(ref _themeHighVisibility, value);
+        set
+        {
+            if (SetField(ref _themeHighVisibility, value))
+                ApplyUiChromeSettings();
+        }
     }
 
     private bool _themeSmallScrollbars;
@@ -697,7 +710,11 @@ public sealed class MainViewModel : BaseViewModel
     public bool ThemeSmallScrollbars
     {
         get => _themeSmallScrollbars;
-        set => SetField(ref _themeSmallScrollbars, value);
+        set
+        {
+            if (SetField(ref _themeSmallScrollbars, value))
+                ApplyUiChromeSettings();
+        }
     }
 
     private string _themeColorMap = "Spectrum";
@@ -707,7 +724,12 @@ public sealed class MainViewModel : BaseViewModel
     public string ThemeColorMap
     {
         get => _themeColorMap;
-        set => SetField(ref _themeColorMap, NormalizeOption(value, ThemeColorMapOptions, "Spectrum"));
+        set
+        {
+            if (SetField(ref _themeColorMap, NormalizeOption(value, ThemeColorMapOptions, "Spectrum")))
+                foreach (var band in SpectrumBands)
+                    band.RefreshBrush();
+        }
     }
 
     private string _projectDefaultTemplate = "Hardstyle_2025";
@@ -757,7 +779,11 @@ public sealed class MainViewModel : BaseViewModel
     public bool ProjectAutoZoomPianoRoll
     {
         get => _projectAutoZoomPianoRoll;
-        set => SetField(ref _projectAutoZoomPianoRoll, value);
+        set
+        {
+            if (SetField(ref _projectAutoZoomPianoRoll, value) && value)
+                PianoRoll.AutoFitToNotes();
+        }
     }
 
     private bool _projectCreateAutomationAtPlaybackPosition = true;
@@ -777,7 +803,11 @@ public sealed class MainViewModel : BaseViewModel
     public bool ProjectSelectFirstNoteChannel
     {
         get => _projectSelectFirstNoteChannel;
-        set => SetField(ref _projectSelectFirstNoteChannel, value);
+        set
+        {
+            if (SetField(ref _projectSelectFirstNoteChannel, value) && value)
+                PianoRoll.SelectFirstChannelWithNotes();
+        }
     }
 
     /// <summary>
@@ -839,6 +869,71 @@ public sealed class MainViewModel : BaseViewModel
     {
         get => _spectrumAnalyzerMode;
         set => SetField(ref _spectrumAnalyzerMode, NormalizeOption(value, SpectrumAnalyzerModes, "Studio Analyzer"));
+    }
+
+    /// <summary>
+    /// Stores or exposes _analyzerPeakDbLabel.
+    /// </summary>
+    private string _analyzerPeakDbLabel = "Peak -- dBFS";
+    /// <summary>
+    /// Stores or exposes AnalyzerPeakDbLabel.
+    /// </summary>
+    public string AnalyzerPeakDbLabel
+    {
+        get => _analyzerPeakDbLabel;
+        private set => SetField(ref _analyzerPeakDbLabel, value);
+    }
+
+    /// <summary>
+    /// Stores or exposes _analyzerRmsDbLabel.
+    /// </summary>
+    private string _analyzerRmsDbLabel = "RMS -- dBFS";
+    /// <summary>
+    /// Stores or exposes AnalyzerRmsDbLabel.
+    /// </summary>
+    public string AnalyzerRmsDbLabel
+    {
+        get => _analyzerRmsDbLabel;
+        private set => SetField(ref _analyzerRmsDbLabel, value);
+    }
+
+    /// <summary>
+    /// Stores or exposes _analyzerDominantBandLabel.
+    /// </summary>
+    private string _analyzerDominantBandLabel = "Dominant --";
+    /// <summary>
+    /// Stores or exposes AnalyzerDominantBandLabel.
+    /// </summary>
+    public string AnalyzerDominantBandLabel
+    {
+        get => _analyzerDominantBandLabel;
+        private set => SetField(ref _analyzerDominantBandLabel, value);
+    }
+
+    /// <summary>
+    /// Stores or exposes _analyzerCentroidLabel.
+    /// </summary>
+    private string _analyzerCentroidLabel = "Centroid --";
+    /// <summary>
+    /// Stores or exposes AnalyzerCentroidLabel.
+    /// </summary>
+    public string AnalyzerCentroidLabel
+    {
+        get => _analyzerCentroidLabel;
+        private set => SetField(ref _analyzerCentroidLabel, value);
+    }
+
+    /// <summary>
+    /// Stores or exposes _analyzerStereoLabel.
+    /// </summary>
+    private string _analyzerStereoLabel = "Stereo --";
+    /// <summary>
+    /// Stores or exposes AnalyzerStereoLabel.
+    /// </summary>
+    public string AnalyzerStereoLabel
+    {
+        get => _analyzerStereoLabel;
+        private set => SetField(ref _analyzerStereoLabel, value);
     }
 
     /// <summary>
@@ -943,7 +1038,11 @@ public sealed class MainViewModel : BaseViewModel
     public string WorkspaceDensity
     {
         get => _workspaceDensity;
-        set => SetField(ref _workspaceDensity, value);
+        set
+        {
+            if (SetField(ref _workspaceDensity, NormalizeOption(value, WorkspaceDensityOptions, "Balanced")))
+                ApplyWorkspaceDensitySettings();
+        }
     }
 
     /// <summary>
@@ -1557,10 +1656,7 @@ public sealed class MainViewModel : BaseViewModel
         {
             if (Path.GetExtension(FilePath).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
             {
-                string embedded = _song.OriginalModuleData is { Length: > 0 }
-                    ? $"embedded {ModuleFormatCatalog.GetDisplayLabel(_song)} source ({_song.SourceModuleExtension})"
-                    : "native internal song";
-                return $"amChipper AMC (.amc) | {embedded}";
+                return "amChipper AMC (.amc) | native internal song";
             }
 
             string label = ModuleFormatCatalog.GetDisplayLabel(_song);
@@ -1601,8 +1697,8 @@ public sealed class MainViewModel : BaseViewModel
     /// </summary>
     public string ProjectSourceLabel => string.IsNullOrWhiteSpace(FilePath)
         ? L("UnsavedInternalProject")
-        : Path.GetExtension(FilePath).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase) && _song.OriginalModuleData is { Length: > 0 }
-        ? $"{FilePath} | AMC container with {_song.OriginalModuleData.Length:N0} embedded source bytes"
+        : Path.GetExtension(FilePath).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase)
+        ? $"{FilePath} | AMC native song data"
         : FilePath;
 
     /// <summary>
@@ -2051,6 +2147,9 @@ public sealed class MainViewModel : BaseViewModel
                 if (_modulePreviewActive && (e.Order != _modulePreviewOrder || (e.Pattern >= 0 && e.Pattern != _modulePreviewPattern)))
                 {
                     AppLogger.Debug($"[ModulePlayback] Preview scope completed order={_modulePreviewOrder} pattern={_modulePreviewPattern} currentOrder={e.Order} currentPattern={e.Pattern}");
+                    if (TryRepeatModulePreviewFromStart("ModulePlayback"))
+                        return;
+
                     Stop();
                     return;
                 }
@@ -2629,6 +2728,21 @@ public sealed class MainViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Executes the ReplayPianoRoll operation.
+    /// </summary>
+    public void ReplayPianoRoll()
+    {
+        if (IsPlaying)
+            Stop();
+
+        PlaybackScope = PlaybackScope.PianoRoll;
+        PianoRoll.PlayheadBeat = 0;
+        PatternEditor.CurrentRow = 0;
+        AppLogger.Info($"[PianoRoll] Replay lane requested pattern={PianoRoll.CurrentPatternIndex} channel={PianoRoll.CurrentChannel}");
+        Play();
+    }
+
+    /// <summary>
     /// Executes the PlayPattern operation.
     /// </summary>
     public void PlayPattern()
@@ -2758,7 +2872,7 @@ public sealed class MainViewModel : BaseViewModel
     /// <summary>
     /// Executes the ApplyLogSettings operation.
     /// </summary>
-    private void ApplyLogSettings()
+    private void ApplyLogSettings(bool silent = false)
     {
         string target = string.IsNullOrWhiteSpace(LogDirectory)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "amChipper", "Logs")
@@ -2770,12 +2884,14 @@ public sealed class MainViewModel : BaseViewModel
             AppLogger.Initialise(target);
             LogDirectory = AppLogger.LogDirectory;
             AppLogger.Info($"[Diagnostics] Log settings applied directory=\"{AppLogger.LogDirectory}\" verbose={VerboseLogging} dependencyDetails={LogDependencyLoadDetails}");
-            StatusText = $"Logging to {AppLogger.LogFilePath}";
+            if (!silent)
+                StatusText = $"Logging to {AppLogger.LogFilePath}";
         }
         catch (Exception ex)
         {
             AppLogger.Error(ex, "[Diagnostics] Failed to apply log settings.");
-            StatusText = $"Could not change log directory: {ex.Message}";
+            if (!silent)
+                StatusText = $"Could not change log directory: {ex.Message}";
         }
     }
 
@@ -3039,6 +3155,7 @@ public sealed class MainViewModel : BaseViewModel
         try
         {
             ApplyConfiguration(AppConfigurationStore.Load());
+            ApplyConfigurationEffects(silent);
             if (!silent)
                 StatusText = $"Loaded configuration: {AppConfigurationStore.DefaultPath}";
             AppLogger.Info($"[Settings] Configuration loaded path=\"{AppConfigurationStore.DefaultPath}\"");
@@ -3097,6 +3214,7 @@ public sealed class MainViewModel : BaseViewModel
         {
             var configuration = AppConfigurationStore.Load(dlg.FileName);
             ApplyConfiguration(configuration);
+            ApplyConfigurationEffects(silent: false);
             AppConfigurationStore.Save(configuration);
             StatusText = $"Imported configuration: {Path.GetFileName(dlg.FileName)}";
             AppLogger.Info($"[Settings] Configuration imported path=\"{dlg.FileName}\" savedTo=\"{AppConfigurationStore.DefaultPath}\"");
@@ -3134,6 +3252,7 @@ public sealed class MainViewModel : BaseViewModel
         try
         {
             ApplyConfiguration(new AppConfiguration());
+            ApplyConfigurationEffects(silent: false);
             AppConfigurationStore.Save(CaptureConfiguration());
             StatusText = "Reset configuration to defaults.";
             AppLogger.Info($"[Settings] Configuration reset path=\"{AppConfigurationStore.DefaultPath}\"");
@@ -3166,6 +3285,7 @@ public sealed class MainViewModel : BaseViewModel
         ToolTipDurationMs = ToolTipDurationMs,
         HelpTextScale = HelpTextScale,
         PreferRestartOnStop = PreferRestartOnStop,
+        StartAtRestartOrder = StartAtRestartOrder,
         SoloSelectedPianoRollChannel = SoloSelectedPianoRollChannel,
         AutoOpenPianoRollOnClipSelect = AutoOpenPianoRollOnClipSelect,
         NotePreviewMode = NotePreviewMode,
@@ -3254,6 +3374,7 @@ public sealed class MainViewModel : BaseViewModel
         ToolTipDurationMs = configuration.ToolTipDurationMs;
         HelpTextScale = configuration.HelpTextScale;
         PreferRestartOnStop = configuration.PreferRestartOnStop;
+        StartAtRestartOrder = configuration.StartAtRestartOrder;
         SoloSelectedPianoRollChannel = configuration.SoloSelectedPianoRollChannel;
         AutoOpenPianoRollOnClipSelect = configuration.AutoOpenPianoRollOnClipSelect;
         NotePreviewMode = NormalizeOption(configuration.NotePreviewMode, NotePreviewModes, "Hold While Pressed");
@@ -3324,6 +3445,39 @@ public sealed class MainViewModel : BaseViewModel
         VerboseLogging = configuration.VerboseLogging;
         LogDependencyLoadDetails = configuration.LogDependencyLoadDetails;
         LogDirectory = string.IsNullOrWhiteSpace(configuration.LogDirectory) ? AppLogger.LogDirectory : configuration.LogDirectory;
+    }
+
+    /// <summary>
+    /// Applies runtime effects after configuration values have been loaded.
+    /// </summary>
+    private void ApplyConfigurationEffects(bool silent)
+    {
+        ApplyWorkspaceDensitySettings();
+        ApplyUiChromeSettings();
+        ConfigureProjectAutosaveTimer();
+        RefreshChiptuneLibrary();
+        ApplyAudioSettings(silent);
+        ApplyLogSettings(silent);
+    }
+
+    /// <summary>
+    /// Applies workspace-density choices to the playlist and piano-roll editor geometry.
+    /// </summary>
+    private void ApplyWorkspaceDensitySettings()
+    {
+        (double songPixels, double trackHeight, double pianoPixels, double pianoRow) = WorkspaceDensity switch
+        {
+            "Compact" => (40, 36, 64, 10),
+            "Spacious" => (64, 60, 104, 18),
+            _ => (48, 48, 80, 14)
+        };
+
+        SongEditor.PixelsPerBeat = songPixels;
+        SongEditor.TrackHeight = trackHeight;
+        PianoRoll.PixelsPerBeat = pianoPixels;
+        PianoRoll.RowHeight = pianoRow;
+        SongEditor.RaiseLayoutChanged();
+        PianoRoll.RaiseNoteLayoutChanged();
     }
 
     /// <summary>
@@ -3854,7 +4008,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             Margin = new Thickness(0, 0, 0, 12)
         };
         var formatLegend = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
-        formatLegend.Children.Add(Card(new TextBlock { Text = "AMC: compressed native project + embedded exact source", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
+        formatLegend.Children.Add(Card(new TextBlock { Text = "AMC: compressed native song model, not an original-file wrapper", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
         formatLegend.Children.Add(Card(new TextBlock { Text = "XM/MOD: editable native patch path with row/effect retention", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
         formatLegend.Children.Add(Card(new TextBlock { Text = "IT/S3M/OpenMPT: broad playback and render/convert support", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
         formatLegend.Children.Add(Card(new TextBlock { Text = "SID/NSF: internal chip trace, audio render, and reconstructed editable rows", Foreground = textPrimary, TextWrapping = TextWrapping.Wrap }));
@@ -3966,19 +4120,19 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         });
         amcHeader.Children.Add(new TextBlock
         {
-            Text = ".amc is the amChipper-native container: smaller than the imported source when compression wins, source-preserving for exact playback, and richer than legacy tracker limits.",
+            Text = ".amc is the amChipper-native module format: it stores normalized patterns, instruments, playlist blocks, automation-ready data and tracker rows as amChipper data instead of wrapping the imported file.",
             Foreground = textSecondary,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6, 0, 0)
         });
         amcGrid.Children.Add(amcHeader);
         var amcFeatures = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
-        amcFeatures.Children.Add(AmcFeature("▣", "Source-preserving exact playback", "Imported XM/MOD/etc bytes are stored as a compressed embedded source section, so the original module player path remains available after reopening the .amc."));
-        amcFeatures.Children.Add(AmcFeature("⇣", "Smaller compressed container", "Metadata and embedded source are Brotli-compressed separately. The included Outlive no2 example is smaller as .amc than the original XM."));
+        amcFeatures.Children.Add(AmcFeature("▣", "Native amChipper module", "Imported tracker content is converted into the amChipper song model so reopened .amc files play and export from amChipper's own data."));
+        amcFeatures.Children.Add(AmcFeature("⇣", "Compressed song data", "The normalized song model is Brotli-compressed as a native module payload, without carrying a hidden copy of the original tracker file."));
         amcFeatures.Children.Add(AmcFeature("64", "Modern channel headroom", "The amChipper song model supports up to 64 channels, beyond classic MOD and FastTracker XM practical limits."));
         amcFeatures.Children.Add(AmcFeature("FX", "Tracker effects retained", "Rows preserve note, instrument, volume column, raw effect command and effect parameter data for tracker-faithful editing."));
         amcFeatures.Children.Add(AmcFeature("▤", "DAW editing model", "The container also carries normalized patterns, order list, tracks, instruments, samples, playlist blocks, channel state and automation-ready data."));
-        amcFeatures.Children.Add(AmcFeature("↯", "Hybrid future path", "AMC can act as both an exact source wrapper and the foundation for amChipper-only features that old tracker formats cannot represent."));
+        amcFeatures.Children.Add(AmcFeature("↯", "amChipper-only features", "AMC is the foundation for features that old tracker formats cannot represent instead of a disguise around the original source module."));
         Grid.SetRow(amcFeatures, 1);
         amcGrid.Children.Add(amcFeatures);
 
@@ -4879,6 +5033,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private static string ResolveFormatExport(ModuleFormatInfo format)
     {
+        if (format.Format == ModuleFormat.AmChip)
+            return "native amChipper save";
+
         if (format.DirtyNativePatchSupported)
             return "native patch + conversion";
 
@@ -4896,7 +5053,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     private static string ResolveFormatNotes(ModuleFormatInfo format) =>
         format.Format switch
         {
-            ModuleFormat.AmChip => "Compressed native container with embedded source, normalized rows, 64-channel headroom, and amChipper-only metadata.",
+            ModuleFormat.AmChip => "Compressed native amChipper song data with normalized rows, playlist blocks, 64-channel headroom, and amChipper-only metadata.",
             ModuleFormat.XM => "Strongest editable round-trip path; preserves tracker rows, instruments, volume column, and effect bytes.",
             ModuleFormat.MOD => "Editable native patch path for classic ProTracker-style rows and effects.",
             ModuleFormat.IT => "Playback/import supported; exact native write-back is renderer/conversion focused.",
@@ -4998,6 +5155,12 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         try
         {
             var info = FileVersionInfo.GetVersionInfo(path);
+            if (Path.GetFileName(path).StartsWith("QuickLog", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(info.FileVersion))
+            {
+                return info.FileVersion;
+            }
+
             return !string.IsNullOrWhiteSpace(info.ProductVersion)
                 ? info.ProductVersion
                 : info.FileVersion ?? string.Empty;
@@ -5066,26 +5229,16 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 Song = NativeChipModuleFile.Load(path);
                 FilePath = path;
                 _originalModulePath = path;
-                _originalModuleData = _song.OriginalModuleData is null ? null : (byte[])_song.OriginalModuleData.Clone();
+                _originalModuleData = null;
                 _useOriginalModulePlayback = false;
                 Audio.UseModulePlayer = false;
-                if (_originalModuleData is { Length: > 0 })
-                {
-                    string sourceName = $"{Path.GetFileNameWithoutExtension(path)}{_song.SourceModuleExtension}";
-                    _useOriginalModulePlayback = Audio.ModulePlayer.Load(_originalModuleData, sourceName);
-                    Audio.UseModulePlayer = _useOriginalModulePlayback;
-                    AppLogger.Info($"[Document] AMC embedded source playback {(_useOriginalModulePlayback ? "loaded" : "failed")} ext={_song.SourceModuleExtension} bytes={_originalModuleData.Length}");
-                }
-
                 Audio.UseAudioFilePlayer = false;
                 Audio.Sequencer.SetSong(_song);
                 UpdateSourceFormatReadout();
                 UpdateRuntimeTempoReadout();
                 IsDirty = false;
                 ClearHistory();
-                StatusText = _useOriginalModulePlayback
-                    ? $"Loaded native chip module with embedded {_song.Format} source: {Path.GetFileName(path)}"
-                    : $"Loaded native chip module: {Path.GetFileName(path)}";
+                StatusText = $"Loaded native chip module: {Path.GetFileName(path)}";
                 AppLogger.Info(
                     $"[Document] Loaded AMC path=\"{path}\" title=\"{_song.Title}\" " +
                     $"format={_song.Format} sourceBytes={_originalModuleData?.Length ?? 0} " +
@@ -5793,10 +5946,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     /// </summary>
     private void ExportNativeModule()
     {
-        if (_originalModuleData is null)
+        if (_song.Format == ModuleFormat.AmChip || _originalModuleData is null)
         {
-            MessageBox.Show("No original module bytes are available for native export.",
-                "Native Export", MessageBoxButton.OK, MessageBoxImage.Information);
+            ExportNativeChipModule();
             return;
         }
 
@@ -6927,9 +7079,7 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
     {
         string extension = Path.GetExtension(FilePath);
         string source = extension.Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase)
-            ? _song.OriginalModuleData is { Length: > 0 }
-                ? $"amChipper AMC container | embedded {ModuleFormatCatalog.GetDisplayLabel(_song)} source | exact module path"
-                : "amChipper AMC container | internal sequencer"
+            ? "amChipper AMC native module | internal sequencer"
             : extension.Equals(SongProjectSerializer.Extension, StringComparison.OrdinalIgnoreCase)
             ? "amChipper compressed project | internal sequencer"
             : _originalModuleData is null
@@ -7087,6 +7237,9 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         if (_modulePreviewActive && (Audio.ModulePlayer.CurrentOrder != _modulePreviewOrder || patternIndex != _modulePreviewPattern))
         {
             AppLogger.Debug($"{source} Preview scope completed order={_modulePreviewOrder} pattern={_modulePreviewPattern} currentOrder={Audio.ModulePlayer.CurrentOrder} currentPattern={patternIndex}");
+            if (TryRepeatModulePreviewFromStart(source))
+                return;
+
             Stop();
             return;
         }
@@ -7097,12 +7250,40 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
 
         int rowsPerBeat = Math.Max(_song.RowsPerBeat, 1);
         SongEditor.PlayheadBeat = Math.Max(0, songBeat);
-        PianoRoll.PlayheadBeat = row / (double)rowsPerBeat;
+        double localBeat = row / (double)rowsPerBeat;
+        PianoRoll.PlayheadBeat = pianoRollUsesLocalBeat ? localBeat : Math.Max(0, songBeat);
 
         PulseModuleTrackMeters(patternIndex, row);
         ChannelRack.UpdatePlaybackRow(row);
         Automation.NotifyPlaybackMoved();
         ClipEnvelope.NotifyPlaybackMoved();
+    }
+
+    /// <summary>
+    /// Rewinds a module-backed pattern or piano-roll preview to its first row when it reaches the next order.
+    /// </summary>
+    private bool TryRepeatModulePreviewFromStart(string source)
+    {
+        if (!_modulePreviewActive ||
+            _modulePreviewOrder < 0 ||
+            PlaybackScope is not (PlaybackScope.PianoRoll or PlaybackScope.Pattern))
+        {
+            return false;
+        }
+
+        AppLogger.Debug($"{source} Repeating preview scope order={_modulePreviewOrder} pattern={_modulePreviewPattern}");
+        Audio.ModulePlayer.SeekToOrder(_modulePreviewOrder, 0);
+        PatternEditor.TrackPlayback(_modulePreviewPattern, 0);
+        if (PlaybackScope == PlaybackScope.PianoRoll)
+            PianoRoll.SetCurrentPattern(_modulePreviewPattern);
+
+        double orderStart = TryGetOrderStartBeat(_modulePreviewOrder, out double beat) ? beat : 0;
+        SongEditor.PlayheadBeat = orderStart;
+        PianoRoll.PlayheadBeat = 0;
+        ChannelRack.UpdatePlaybackRow(0);
+        Automation.NotifyPlaybackMoved();
+        ClipEnvelope.NotifyPlaybackMoved();
+        return true;
     }
 
     /// <summary>
@@ -7167,12 +7348,41 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
         double minHz = 31.0;
         double maxHz = Math.Min(18000.0, sampleRate * 0.48);
         int startFrame = Math.Max(0, availableFrames - frames);
+        double peak = 0;
+        double rmsSum = 0;
+        double leftEnergy = 0;
+        double rightEnergy = 0;
+        double correlation = 0;
+        int clipped = 0;
+        for (int frame = 0; frame < frames; frame++)
+        {
+            int sampleIndex = (startFrame + frame) * channels;
+            if (sampleIndex + 1 >= buffer.Length)
+                break;
+
+            double left = buffer[sampleIndex];
+            double right = buffer[sampleIndex + 1];
+            double leftAbs = Math.Abs(left);
+            double rightAbs = Math.Abs(right);
+            peak = Math.Max(peak, Math.Max(leftAbs, rightAbs));
+            rmsSum += (left * left + right * right) * 0.5;
+            leftEnergy += left * left;
+            rightEnergy += right * right;
+            correlation += left * right;
+            if (leftAbs >= 0.98 || rightAbs >= 0.98)
+                clipped++;
+        }
+
         double analyzerLift = SpectrumAnalyzerMode switch
         {
             "Peak Focus" => 1.28,
             "Compact Bars" => 1.08,
             _ => 1.18
         };
+        double magnitudeSum = 0;
+        double weightedHz = 0;
+        double dominantHz = 0;
+        double dominantMagnitude = 0;
 
         for (int band = 0; band < bandCount; band++)
         {
@@ -7196,6 +7406,14 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
             }
 
             double magnitude = Math.Sqrt(re * re + im * im) / (frames * 0.25);
+            magnitudeSum += magnitude;
+            weightedHz += magnitude * hz;
+            if (magnitude > dominantMagnitude)
+            {
+                dominantMagnitude = magnitude;
+                dominantHz = hz;
+            }
+
             double db = 20.0 * Math.Log10(Math.Max(magnitude * analyzerLift * VisualizerIntensity, 0.000001));
             double shaped = Math.Clamp((db + 72.0) / 72.0, 0, 1);
             shaped = Math.Pow(shaped, 0.72);
@@ -7206,7 +7424,39 @@ Use Settings -> Mixer Visualizer to tune intensity, peak hold and analyzer mode.
                 ? previous + (shaped - previous) * 0.62
                 : Math.Max(shaped, previous * release);
         }
+
+        double rms = Math.Sqrt(rmsSum / Math.Max(frames, 1));
+        double stereoDenominator = Math.Sqrt(leftEnergy * rightEnergy);
+        double stereoCorrelation = stereoDenominator <= 0 ? 0 : Math.Clamp(correlation / stereoDenominator, -1, 1);
+        AnalyzerPeakDbLabel = $"Peak {FormatDb(peak)}";
+        AnalyzerRmsDbLabel = $"RMS {FormatDb(rms)}";
+        AnalyzerDominantBandLabel = dominantMagnitude > 0.000001
+            ? $"Dominant {FormatFrequency(dominantHz)} {FormatDb(dominantMagnitude * analyzerLift)}"
+            : "Dominant --";
+        AnalyzerCentroidLabel = magnitudeSum > 0.000001
+            ? $"Centroid {FormatFrequency(weightedHz / magnitudeSum)}"
+            : "Centroid --";
+        AnalyzerStereoLabel = clipped > 0
+            ? $"Stereo {stereoCorrelation:+0.00;-0.00;0.00} | clips {clipped}"
+            : $"Stereo {stereoCorrelation:+0.00;-0.00;0.00} | clean";
     }
+
+    /// <summary>
+    /// Formats a linear amplitude as a dBFS readout.
+    /// </summary>
+    private static string FormatDb(double linear)
+    {
+        if (linear <= 0.000001)
+            return "-inf dBFS";
+
+        return $"{20.0 * Math.Log10(linear):0.0} dBFS";
+    }
+
+    /// <summary>
+    /// Formats analyzer frequencies for compact UI labels.
+    /// </summary>
+    private static string FormatFrequency(double hz) =>
+        hz >= 1000 ? $"{hz / 1000.0:0.##} kHz" : $"{hz:0} Hz";
 
     /// <summary>
     /// Executes the PulseModuleTrackMeters operation.
@@ -8548,6 +8798,11 @@ public sealed class SpectrumBandViewModel(int index) : BaseViewModel
             return new LinearGradientBrush(top, bottom, 90);
         }
     }
+
+    /// <summary>
+    /// Refreshes the band brush after analyzer color-map settings change.
+    /// </summary>
+    public void RefreshBrush() => OnPropertyChanged(nameof(BarBrush));
 
     /// <summary>
     /// Executes the Reset operation.

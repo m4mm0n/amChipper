@@ -845,11 +845,21 @@
               </Grid>
             </Border>
 
-            <UniformGrid Grid.Row="2" Columns="3" Margin="0,12,0,0">
+            <UniformGrid Grid.Row="2" Columns="4" Margin="0,12,0,0">
               <Border Style="{StaticResource SettingsPanel}" Margin="0,0,8,0">
                 <StackPanel>
                   <TextBlock Text="{Binding [Input]}" Style="{StaticResource SectionTitle}"/>
                   <TextBlock Text="{Binding SourceFormatLabel}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource SettingsPanel}" Margin="4,0">
+                <StackPanel>
+                  <TextBlock Text="Signal" Style="{StaticResource SectionTitle}"/>
+                  <TextBlock Text="{Binding AnalyzerPeakDbLabel}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"/>
+                  <TextBlock Text="{Binding AnalyzerRmsDbLabel}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas"/>
+                  <TextBlock Text="{Binding AnalyzerDominantBandLabel}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding AnalyzerCentroidLabel}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding AnalyzerStereoLabel}" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" TextWrapping="Wrap"/>
                 </StackPanel>
               </Border>
               <Border Style="{StaticResource SettingsPanel}" Margin="4,0">

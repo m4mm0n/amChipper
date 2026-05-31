@@ -206,13 +206,18 @@ public sealed class AudioEngine : IAudioEngine
         if (_waveOut is null) Initialise();
 
         _log.Info($"[AudioEngine] PreviewNote pitch={pitch} instrumentIndex={instrumentIndex} channel={channel} velocity={velocity} ms={milliseconds}");
-        UseModulePlayer = false;
-        UseAudioFilePlayer = false;
-        UseChipStreamPlayer = false;
+        bool shouldTakeMainOutput = State != CorePlaybackState.Playing;
+        if (shouldTakeMainOutput)
+        {
+            UseModulePlayer = false;
+            UseAudioFilePlayer = false;
+            UseChipStreamPlayer = false;
+        }
+
         Sequencer.SetSong(song);
         Sequencer.PreviewNote(pitch, instrumentIndex, channel, velocity, milliseconds);
 
-        if (State != CorePlaybackState.Playing)
+        if (shouldTakeMainOutput)
             _waveOut!.Play();
     }
 
@@ -644,6 +649,10 @@ internal sealed class ChipWaveProvider : IWaveProvider
     /// Stores or exposes _floatBuffer.
     /// </summary>
     private float[] _floatBuffer = [];
+    /// <summary>
+    /// Stores or exposes _previewBuffer.
+    /// </summary>
+    private float[] _previewBuffer = [];
 
     /// <summary>
     /// Stores or exposes WaveFormat.
@@ -673,6 +682,7 @@ internal sealed class ChipWaveProvider : IWaveProvider
         Array.Clear(_floatBuffer, 0, requiredSamples);
 
         int renderedFrames = 0;
+        bool renderedBySequencer = false;
         if (_engine.UseChipStreamPlayer && _engine.ChipStreamPlayer.IsLoaded)
             renderedFrames = _engine.ChipStreamPlayer.Render(_floatBuffer, totalFrames, channels);
         else if (_engine.UseAudioFilePlayer && _engine.AudioFilePlayer.IsLoaded)
@@ -683,6 +693,18 @@ internal sealed class ChipWaveProvider : IWaveProvider
         {
             _engine.Sequencer.Render(_floatBuffer, totalFrames);
             renderedFrames = totalFrames;
+            renderedBySequencer = true;
+        }
+
+        if (!renderedBySequencer && renderedFrames > 0 && _engine.Sequencer.HasPreviewVoices)
+        {
+            int previewSamples = renderedFrames * channels;
+            if (_previewBuffer.Length < previewSamples)
+                _previewBuffer = new float[previewSamples];
+
+            _engine.Sequencer.Render(_previewBuffer, renderedFrames);
+            for (int i = 0; i < previewSamples; i++)
+                _floatBuffer[i] = Math.Clamp(_floatBuffer[i] + _previewBuffer[i], -1.25f, 1.25f);
         }
 
         _engine.OnBufferFilled(_floatBuffer, renderedFrames);

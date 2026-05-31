@@ -68,8 +68,14 @@ public sealed class PianoRollViewModel : BaseViewModel
             OnPropertyChanged(nameof(CurrentPatternName));
             OnPropertyChanged(nameof(CurrentPatternLabel));
             RefreshChannelOptions();
+            if (_main.ProjectSelectFirstNoteChannel)
+                SelectFirstChannelWithNotes();
+
             RefreshActiveInstrument();
             RefreshFromPattern();
+            if (_main.ProjectAutoZoomPianoRoll)
+                AutoFitToNotes();
+
             AppLogger.Info($"[PianoRoll] SetCurrentPattern pattern={clamped} name=\"{CurrentPatternName}\" rows={_pattern.RowCount} channels={_pattern.ChannelCount}");
         }
     }
@@ -320,7 +326,15 @@ public sealed class PianoRollViewModel : BaseViewModel
     /// <summary>
     /// Executes the PlayheadBeat operation.
     /// </summary>
-    public double PlayheadBeat { get => _playheadBeat; set { SetField(ref _playheadBeat, value); PlayheadMoved?.Invoke(this, EventArgs.Empty); } }
+    public double PlayheadBeat
+    {
+        get => _playheadBeat;
+        set
+        {
+            if (SetField(ref _playheadBeat, value))
+                PlayheadMoved?.Invoke(this, EventArgs.Empty);
+        }
+    }
     /// <summary>
     /// Stores or exposes _playheadBeat.
     /// </summary>
@@ -471,6 +485,10 @@ public sealed class PianoRollViewModel : BaseViewModel
     /// </summary>
     public ICommand PlayLaneCommand { get; }
     /// <summary>
+    /// Stores or exposes RepeatLaneCommand.
+    /// </summary>
+    public ICommand RepeatLaneCommand { get; }
+    /// <summary>
     /// Stores or exposes StopCommand.
     /// </summary>
     public ICommand StopCommand { get; }
@@ -511,6 +529,7 @@ public sealed class PianoRollViewModel : BaseViewModel
         ApplyEffectCommand = new RelayCommand(_ => ApplySelectedEffect(), _ => SelectedEffectRow is not null);
         ClearEffectCommand = new RelayCommand(_ => ClearSelectedEffect(), _ => SelectedEffectRow is not null);
         PlayLaneCommand = new RelayCommand(_ => _main.PlayPianoRoll());
+        RepeatLaneCommand = new RelayCommand(_ => _main.ReplayPianoRoll());
         StopCommand = new RelayCommand(_ => _main.StopCommand.Execute(null));
     }
 
@@ -567,8 +586,64 @@ public sealed class PianoRollViewModel : BaseViewModel
     {
         RefreshPatternOptions();
         RefreshChannelOptions();
+        if (_main.ProjectSelectFirstNoteChannel)
+            SelectFirstChannelWithNotes();
+
         RefreshFromPattern();
+        if (_main.ProjectAutoZoomPianoRoll)
+            AutoFitToNotes();
+
         NoteLayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Fits the piano-roll viewport around active notes in the current lane.
+    /// </summary>
+    public void AutoFitToNotes(double viewportWidth = 1200)
+    {
+        if (_pattern is null)
+            return;
+
+        double lastBeat = Notes
+            .Select(note => (note.StartTick + Math.Max(1, note.DurationTicks)) / Math.Max(TicksPerBeat, 1))
+            .DefaultIfEmpty(_pattern.RowCount / Math.Max(TicksPerBeat, 1))
+            .Max();
+        PixelsPerBeat = viewportWidth / Math.Max(lastBeat + 4, 16);
+
+        if (Notes.Count > 0)
+        {
+            int highPitch = Notes.Max(note => note.Pitch);
+            ScrollPitch = Math.Max(0, 127 - highPitch - 8);
+        }
+    }
+
+    /// <summary>
+    /// Selects the first channel containing a playable note in the active pattern.
+    /// </summary>
+    public bool SelectFirstChannelWithNotes()
+    {
+        if (_pattern is null || ChannelOptions.Count == 0)
+            return false;
+
+        for (int channel = 0; channel < _pattern.ChannelCount; channel++)
+        {
+            for (int row = 0; row < _pattern.RowCount; row++)
+            {
+                var note = _pattern.GetNote(row, channel);
+                if (note.Pitch is <= 0 or >= (byte)SpecialNote.NoteOff)
+                    continue;
+
+                if (CurrentChannel != channel)
+                {
+                    CurrentChannel = channel;
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

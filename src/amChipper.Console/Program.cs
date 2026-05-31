@@ -430,7 +430,7 @@ internal static class Program
             $"loaded     yes",
             $"title      {loaded.Title}",
             $"container  amChipper AMC (.amc)",
-            $"embedded   {loaded.Format} {loaded.SourceModuleExtension} source",
+            $"model      native amChipper song data",
             $"structure  {loaded.OrderList.Count} orders, {loaded.Patterns.Count} patterns, {loaded.Tracks.Count} channels",
             $"bytes      {new FileInfo(exportPath).Length}"
         ]);
@@ -449,13 +449,7 @@ internal static class Program
         if (Path.GetExtension(path).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase))
         {
             song = NativeChipModuleFile.Load(path);
-            byte[] embedded = song.OriginalModuleData
-                ?? throw new InvalidOperationException("The AMC file does not contain an embedded source module for libopenmpt playback.");
-            var nativeModule = new ModulePlayer(SampleRate, logger);
-            string sourceName = $"{Path.GetFileNameWithoutExtension(path)}{song.SourceModuleExtension}";
-            if (!nativeModule.Load(embedded, sourceName))
-                throw new InvalidOperationException($"Could not load embedded module from AMC: {path}");
-            return nativeModule;
+            throw new InvalidOperationException("AMC files are native amChipper modules, not embedded libopenmpt source modules. Open them in the app or export XM first for libopenmpt playback.");
         }
 
         byte[] data = File.ReadAllBytes(path);
@@ -476,7 +470,7 @@ internal static class Program
         var vu = RenderModuleVuSnapshot(module, Math.Min(song.Tracks.Count, module.ChannelCount));
         bool isAmc = Path.GetExtension(inputPath).Equals(NativeChipModuleFile.Extension, StringComparison.OrdinalIgnoreCase);
         string formatLine = isAmc
-            ? $"amChipper AMC (.amc), embedded {song.Format} {song.SourceModuleExtension} source"
+            ? "amChipper AMC (.amc), native song data"
             : song.Format.ToString();
         PrintHeader("amChipper headless console");
         PrintPanel("TRANSPORT",

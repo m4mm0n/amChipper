@@ -5,6 +5,7 @@ using NAudio.Wave;
 
 namespace amChipper.Audio.Tests;
 
+#if AMCHIPPER_LIBOPENMPT_NET
 public sealed class ManagedModulePlayerTests
 {
     [Fact]
@@ -568,3 +569,4 @@ public sealed class ManagedModulePlayerTests
         }
     }
 }
+#endif

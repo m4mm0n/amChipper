@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using amChipper.App.Services;
 using amChipper.App.ViewModels;
+using amChipper.Core.Editing;
 using amChipper.Core.Models;
 
 namespace amChipper.App.Controls.SongEditor;
@@ -166,8 +167,9 @@ public sealed class TimelineCanvas : FrameworkElement
                     ? new SolidColorBrush(Colors.White)
                     : new SolidColorBrush(Color.FromArgb(0xAA, 0, 0, 0)), 1.0);
 
-                dc.DrawRoundedRectangle(fill, borderPen,
-                    new Rect(bx, by, Math.Max(bw - 1, 4), bh), 3, 3);
+                var blockRect = new Rect(bx, by, Math.Max(bw - 1, 4), bh);
+                dc.DrawRoundedRectangle(fill, borderPen, blockRect, 3, 3);
+                DrawPatternPreview(dc, block, ti, blockRect);
 
                 if (selected && bw > 12)
                 {
@@ -484,6 +486,18 @@ public sealed class TimelineCanvas : FrameworkElement
                         _historyOpen = true;
                         AppLogger.Debug($"[Timeline] DragStart mode=resize pattern={hit.PatternIndex} start={hit.StartBeat:0.###} duration={hit.DurationBeats:0.###}");
                     }
+                    else if (hit is not null)
+                    {
+                        ViewModel.BeginHistory("Move block");
+                        _dragBlock = hit;
+                        _dragTrack = track;
+                        _dragStartBeat = beat;
+                        _dragBlockOrigStart = hit.StartBeat;
+                        _dragBlockOrigDuration = hit.DurationBeats;
+                        _resizing = false;
+                        _historyOpen = true;
+                        AppLogger.Debug($"[Timeline] DragStart mode=move pattern={hit.PatternIndex} start={hit.StartBeat:0.###} duration={hit.DurationBeats:0.###}");
+                    }
                     break;
                 }
             case SongEditorTool.Mute:
@@ -670,6 +684,60 @@ public sealed class TimelineCanvas : FrameworkElement
         double bx = ViewModel.BeatToX(block.StartBeat);
         double bw = block.DurationBeats * ViewModel.PixelsPerBeat;
         return pt.X >= bx + bw - 8 && pt.X <= bx + bw + 4;
+    }
+
+    /// <summary>
+    /// Draws a compact piano-roll style preview inside a playlist pattern block.
+    /// </summary>
+    private void DrawPatternPreview(DrawingContext dc, PatternBlock block, int trackIndex, Rect rect)
+    {
+        if (ViewModel is null || rect.Width < 14 || rect.Height < 12 ||
+            block.PatternIndex < 0 || block.PatternIndex >= ViewModel.Patterns.Count)
+        {
+            return;
+        }
+
+        var pattern = ViewModel.Patterns[block.PatternIndex];
+        if (pattern.RowCount <= 0 || pattern.ChannelCount <= 0)
+            return;
+
+        int channel = Math.Clamp(trackIndex, 0, pattern.ChannelCount - 1);
+        int fallbackDuration = Math.Max(1, (int)Math.Round(pattern.RowCount / Math.Max(block.DurationBeats, 1)));
+        var notes = PianoRollLaneCommitter.LoadNotes(pattern, channel, fallbackDuration);
+        double left = rect.X + 4;
+        double top = rect.Y + 4;
+        double width = Math.Max(rect.Width - 8, 1);
+        double height = Math.Max(rect.Height - 8, 1);
+
+        dc.PushClip(new RectangleGeometry(new Rect(rect.X + 1, rect.Y + 1, Math.Max(rect.Width - 2, 1), Math.Max(rect.Height - 2, 1))));
+        foreach (var note in notes.Take(96))
+        {
+            double start = Math.Clamp(note.StartTick / (double)Math.Max(pattern.RowCount, 1), 0, 1);
+            double duration = Math.Clamp(note.DurationTicks / (double)Math.Max(pattern.RowCount, 1), 0.02, 1);
+            double pitch = (Math.Clamp(note.Pitch, (byte)24, (byte)96) - 24) / 72.0;
+            double x = left + start * width;
+            double y = top + (1.0 - pitch) * height;
+            double noteWidth = Math.Max(2.0, duration * width);
+            byte alpha = (byte)Math.Clamp(block.Muted ? 0x52 : 0x80 + note.Velocity, 0x58, 0xDE);
+            var brush = new SolidColorBrush(Color.FromArgb(alpha, 0xFF, 0xFF, 0xFF));
+            dc.DrawRoundedRectangle(brush, null, new Rect(x, y - 1.5, noteWidth, 3), 1.5, 1.5);
+        }
+
+        if (rect.Width >= 32)
+        {
+            var tickBrush = new SolidColorBrush(Color.FromArgb(block.Muted ? (byte)0x42 : (byte)0x88, 0xFF, 0xDD, 0x73));
+            for (int row = 0; row < pattern.RowCount; row++)
+            {
+                var cell = pattern.GetNote(row, channel);
+                if (!PianoRollLaneCommitter.HasTrackerEffect(cell))
+                    continue;
+
+                double x = left + row / (double)Math.Max(pattern.RowCount, 1) * width;
+                dc.DrawRectangle(tickBrush, null, new Rect(x, rect.Y + rect.Height - 5, 1.5, 3));
+            }
+        }
+
+        dc.Pop();
     }
 
     /// <summary>

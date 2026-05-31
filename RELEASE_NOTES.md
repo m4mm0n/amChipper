@@ -1,17 +1,20 @@
-# amChipper v0.2.4.0-AMC20260524.2
+# amChipper v0.2.5.0
 
-This hotfix keeps the new bug-report dialog usable while the app is running and QuickLog owns the live log file.
+This release moves amChipper back to the native original libopenmpt runtime and fixes several broken editing/playback surfaces before rebuilding the Windows and Linux Wine packages.
 
 ## Included
 
-- Fixed **Help -> Report Bug...** so it no longer throws when `amChipper.log` is locked by the current process.
-- The report now reads the log with shared access when possible.
-- If the log file is still locked or unavailable, the report includes a clear note instead of crashing the dialog.
-- Added regression coverage for locked log files.
-- App build bumped to `v0.2.4.0-AMC20260524.2`.
+- Native libopenmpt release path restored with OpenMPT 0.8.7 runtime DLLs.
+- Piano Roll tab no longer disrupts active playback or bounces the playhead between song and pattern coordinates.
+- Piano-roll playback can be restarted from the first row with a repeat/replay command.
+- Playlist blocks now draw compact note/effect previews that reflect the pattern lane data.
+- `.amc` now exports real amChipper native song data instead of a hidden original-module wrapper.
+- Analyzer now reports peak, RMS, dominant frequency, spectral centroid, stereo correlation, and clipping status.
+- About/runtime view now reports QuickLog's own version instead of the amChipper build version.
+- Settings import/reset and visible workspace/project settings now reapply their runtime effects.
+- App build bumped to `v0.2.5.0-AMC20260531.1`.
 
-## Still included from v0.2.4.0-AMC20260524.1
+## Validation
 
-- Bug reports are addressed to `admin@darkmaster.no`.
-- QuickLog is upgraded to `v2.4.0`.
-- Release workflow publishes both Windows and Linux Wine packages.
+- `dotnet build .\amChipper.sln -c Release -p:Platform=x64 -p:UseManagedLibOpenMpt=false`
+- `dotnet test .\amChipper.sln -c Release -p:Platform=x64 -p:UseManagedLibOpenMpt=false`
