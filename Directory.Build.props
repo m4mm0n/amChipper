@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup>
-    <Version>0.2.5.1</Version>
-    <AssemblyVersion>0.2.5.1</AssemblyVersion>
-    <FileVersion>0.2.5.1</FileVersion>
-    <InformationalVersion>v0.2.5.1-AMC20260531.2</InformationalVersion>
+    <Version>0.2.5.2</Version>
+    <AssemblyVersion>0.2.5.2</AssemblyVersion>
+    <FileVersion>0.2.5.2</FileVersion>
+    <InformationalVersion>v0.2.5.2-AMC20260601.1</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <LibOpenMptNetRoot Condition="'$(LibOpenMptNetRoot)' == ''">$(MSBuildThisFileDirectory)..\..\libopenmpt.net</LibOpenMptNetRoot>
     <UseManagedLibOpenMpt Condition="'$(UseManagedLibOpenMpt)' == '' and Exists('$(LibOpenMptNetRoot)\libopenmpt.net.Core\libopenmpt.net.Core.csproj')">true</UseManagedLibOpenMpt>

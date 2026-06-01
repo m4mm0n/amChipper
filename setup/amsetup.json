@@ -1,7 +1,7 @@
 ﻿{
     "productName":  "amChipper",
     "identifier":  "amchipper",
-    "version":  "0.2.5.1",
+    "version":  "0.2.5.2",
     "publisher":  "ZeroLinez Softworx",
     "description":  "A Windows/.NET 10 chiptune DAW and tracker with MilkyTracker-style editing and FL Studio-inspired arrangement tools.",
     "defaultInstallDirectory":  "{ProgramFiles}\\{Publisher}\\{ProductName}",

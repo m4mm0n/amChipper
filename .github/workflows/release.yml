@@ -9,7 +9,7 @@ on:
       tag:
         description: Release tag to package
         required: true
-        default: v0.2.5.0
+        default: v0.2.5.2
 
 permissions:
   contents: write
@@ -78,8 +78,30 @@ jobs:
             }
           }
           finally {
-            $zip.Dispose()
-            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+              $zip.Dispose()
+              Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Validate published dependency layout
+        shell: pwsh
+        run: |
+          $publish = Join-Path $PWD "artifacts\publish\win-x64"
+          $expectedFileVersion = (Get-Item -LiteralPath (Join-Path $publish "amChipper.exe")).VersionInfo.FileVersion
+          foreach ($dllName in @("amChipper.Core.dll", "amChipper.Audio.dll", "amChipper.AmcPlayer.dll", "amChipper.TrackerPlayer.dll")) {
+            $path = Join-Path $publish "libs\$dllName"
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Missing managed dependency: libs\$dllName"
+            }
+
+            $actualFileVersion = (Get-Item -LiteralPath $path).VersionInfo.FileVersion
+            if ($actualFileVersion -ne $expectedFileVersion) {
+              throw "Stale managed dependency: $dllName expected $expectedFileVersion, found $actualFileVersion"
+            }
+          }
+
+          $deps = Get-Content -LiteralPath (Join-Path $publish "amChipper.deps.json") -Raw
+          if ($deps -notmatch '"libs/amChipper\.Audio\.dll"') {
+            throw "amChipper.deps.json does not route managed dependencies through libs/."
           }
 
       - name: Prepare Linux Wine compatibility package

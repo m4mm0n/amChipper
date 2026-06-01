@@ -165,8 +165,18 @@ function Ensure-LibOpenMpt {
         Where-Object { $_.FullName -notlike "*\Ready2Release\*" } |
         Select-Object -First 1
     if ($null -ne $existing) {
-        foreach ($dll in Get-ChildItem -LiteralPath $existing.DirectoryName -File -Filter "*.dll") {
-            Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $libs $dll.Name) -Force
+        $nativeDllNames = @(
+            "libopenmpt.dll",
+            "openmpt-mpg123.dll",
+            "openmpt-ogg.dll",
+            "openmpt-vorbis.dll",
+            "openmpt-zlib.dll"
+        )
+        foreach ($dllName in $nativeDllNames) {
+            $sourceDll = Join-Path $existing.DirectoryName $dllName
+            if (Test-Path -LiteralPath $sourceDll) {
+                Copy-Item -LiteralPath $sourceDll -Destination (Join-Path $libs $dllName) -Force
+            }
         }
         return
     }
@@ -199,6 +209,47 @@ function Ensure-LibOpenMpt {
     finally {
         $zip.Dispose()
         Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Move-PublishedDependencyDllsToLibs {
+    param([Parameter(Mandatory = $true)][string]$PublishDir)
+
+    $libs = Join-Path $PublishDir "libs"
+    New-Item -ItemType Directory -Path $libs -Force | Out-Null
+    Get-ChildItem -LiteralPath $PublishDir -File -Filter "*.dll" |
+        Where-Object { -not $_.Name.Equals("amChipper.dll", [StringComparison]::OrdinalIgnoreCase) } |
+        ForEach-Object {
+            Move-Item -LiteralPath $_.FullName -Destination (Join-Path $libs $_.Name) -Force
+        }
+}
+
+function Assert-PublishedManagedDependencies {
+    param([Parameter(Mandatory = $true)][string]$PublishDir)
+
+    $appExe = Join-Path $PublishDir "amChipper.exe"
+    if (-not (Test-Path -LiteralPath $appExe)) {
+        throw "Published payload is incomplete. Missing amChipper.exe in '$PublishDir'."
+    }
+
+    $expectedFileVersion = (Get-Item -LiteralPath $appExe).VersionInfo.FileVersion
+    $managedDlls = @(
+        "amChipper.Core.dll",
+        "amChipper.Audio.dll",
+        "amChipper.AmcPlayer.dll",
+        "amChipper.TrackerPlayer.dll"
+    )
+
+    foreach ($dllName in $managedDlls) {
+        $path = Join-Path $PublishDir "libs\$dllName"
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw "Published payload is incomplete. Missing libs\$dllName in '$PublishDir'."
+        }
+
+        $actualFileVersion = (Get-Item -LiteralPath $path).VersionInfo.FileVersion
+        if ($actualFileVersion -ne $expectedFileVersion) {
+            throw "Published payload has stale managed dependency '$dllName'. Expected file version $expectedFileVersion, found $actualFileVersion."
+        }
     }
 }
 
@@ -414,6 +465,8 @@ if (-not $SkipPublish) {
     Invoke-Checked -FilePath $languageTool -ArgumentList @("export", "--output", (Join-Path $PublishDir "lang")) -WorkingDirectory $RepoRoot
 }
 
+Move-PublishedDependencyDllsToLibs -PublishDir $PublishDir
+
 Invoke-Checked -FilePath "powershell" -ArgumentList @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
@@ -438,6 +491,7 @@ if (Test-Path -LiteralPath $examplesSource) {
 }
 
 Ensure-LibOpenMpt -Destination $PublishDir
+Assert-PublishedManagedDependencies -PublishDir $PublishDir
 
 $requiredPayloadFiles = @(
     "amChipper.exe",

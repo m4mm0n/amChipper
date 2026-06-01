@@ -2,6 +2,17 @@
 
 This changelog covers user-facing prototype releases and repair passes. It is written as a readable development log rather than as a raw git-derived release log.
 
+## v0.2.5.2 - 01.06.2026
+
+### Ready2Release Startup Fix
+
+- Fixed the `Ready2Release` startup crash caused by stale managed DLLs in `libs` being loaded beside the new `amChipper.exe`.
+- Changed the local installer/package builder so OpenMPT reuse copies only `libopenmpt.dll` and its native helper DLLs, never old amChipper managed assemblies from another package folder.
+- Added package validation that checks `amChipper.Core.dll`, `amChipper.Audio.dll`, `amChipper.AmcPlayer.dll`, and `amChipper.TrackerPlayer.dll` in `libs` match the app file version before an installer can be produced.
+- Added the same managed-dependency version validation to the GitHub release workflow before Windows/Linux Wine packages are zipped.
+- Hardened `MainWindow.OnClosed` after early constructor failures so a startup exception does not trigger a second null-reference dialog while the app is shutting down.
+- Bumped the app build to `v0.2.5.2-AMC20260601.1`.
+
 ## v0.2.5.1 - 31.05.2026
 
 ### Playback, Analyzer, Mixer, and AMC Fidelity Hotfix

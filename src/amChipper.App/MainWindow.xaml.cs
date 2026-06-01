@@ -33,7 +33,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// Stores or exposes _vm.
     /// </summary>
-    private readonly MainViewModel _vm;
+    private readonly MainViewModel? _vm;
     /// <summary>
     /// Stores or exposes _mixerEditSlider.
     /// </summary>
@@ -60,7 +60,7 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             ApplyPersistedLayout();
-            Dispatcher.BeginInvoke(new Action(() => _vm.ShowStartupTipIfEnabled()));
+            Dispatcher.BeginInvoke(new Action(() => _vm?.ShowStartupTipIfEnabled()));
         };
     }
 
@@ -69,7 +69,8 @@ public partial class MainWindow : Window
     /// </summary>
     protected override void OnClosed(EventArgs e)
     {
-        CapturePersistedLayout();
+        if (_vm is not null && MainTabControl is not null && LeftPanelColumn is not null)
+            CapturePersistedLayout();
         _vm?.SaveConfigurationOnExit();
         _vm?.Audio?.Dispose();
         base.OnClosed(e);
@@ -80,6 +81,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void ApplyPersistedLayout()
     {
+        if (_vm is null)
+            return;
+
         LeftPanelColumn.Width = new GridLength(_vm.MainLeftPanelWidth, GridUnitType.Pixel);
         ApplyPersistedTabOrder();
     }
@@ -89,6 +93,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void CapturePersistedLayout()
     {
+        if (_vm is null)
+            return;
+
         _vm.MainLeftPanelWidth = LeftPanelColumn.ActualWidth;
         _vm.MainTabOrder = MainTabControl.Items.OfType<TabItem>()
             .Select(item => item.Name)
@@ -101,6 +108,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void ApplyPersistedTabOrder()
     {
+        if (_vm is null)
+            return;
+
         if (_vm.MainTabOrder.Length == 0)
             return;
 
@@ -133,7 +143,7 @@ public partial class MainWindow : Window
     private void MainSplitter_DragCompleted(object sender, DragCompletedEventArgs e)
     {
         CapturePersistedLayout();
-        _vm.SaveConfigurationOnExit();
+        _vm?.SaveConfigurationOnExit();
     }
 
     /// <summary>
@@ -148,7 +158,7 @@ public partial class MainWindow : Window
         if (menu != 0)
         {
             AppendMenu(menu, MfSeparator, 0, string.Empty);
-            string aboutText = (_vm["About"] ?? "About amChipper").Replace("_", string.Empty, StringComparison.Ordinal);
+            string aboutText = (_vm?["About"] ?? "About amChipper").Replace("_", string.Empty, StringComparison.Ordinal);
             AppendMenu(menu, MfString, SystemMenuAboutId, $"{aboutText}...");
         }
     }
@@ -161,7 +171,7 @@ public partial class MainWindow : Window
         const int wmSysCommand = 0x0112;
         if (msg == wmSysCommand && (wParam.ToInt32() & 0xFFF0) == SystemMenuAboutId)
         {
-            _vm.ShowAboutCommand.Execute(null);
+            _vm?.ShowAboutCommand.Execute(null);
             handled = true;
         }
 
@@ -190,6 +200,9 @@ public partial class MainWindow : Window
 
     private void LibraryList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (_vm is null)
+            return;
+
         if (_vm.OpenSelectedChiptuneCommand.CanExecute(null))
             _vm.OpenSelectedChiptuneCommand.Execute(null);
     }
@@ -211,6 +224,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void View_PianoRoll(object sender, RoutedEventArgs e)
     {
+        if (_vm is null)
+            return;
+
         MainTabControl.SelectedItem = PianoRollTab;
         if (_vm.IsPlaying)
             return;
@@ -290,7 +306,7 @@ public partial class MainWindow : Window
         MoveDraggedMainTab(e);
         MainTabControl.SelectedItem = source;
         CapturePersistedLayout();
-        _vm.SaveConfigurationOnExit();
+        _vm?.SaveConfigurationOnExit();
         e.Handled = true;
     }
 
@@ -361,7 +377,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void SpectrumPreview_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        _vm.CycleSpectrumAnalyzerMode();
+        _vm?.CycleSpectrumAnalyzerMode();
         MainTabControl.SelectedItem = AnalyzerTab;
     }
 
@@ -370,7 +386,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void SpectrumPreview_MouseLeftButtonUp(object sender, RoutedEventArgs e)
     {
-        _vm.CycleSpectrumAnalyzerMode();
+        _vm?.CycleSpectrumAnalyzerMode();
         MainTabControl.SelectedItem = AnalyzerTab;
     }
 
@@ -385,7 +401,7 @@ public partial class MainWindow : Window
         _mixerEditSlider = slider;
         _mixerEditStartValue = slider.Value;
         _mixerHistoryOpen = true;
-        _vm.BeginHistory("Adjust mixer");
+        _vm?.BeginHistory("Adjust mixer");
     }
 
     /// <summary>
@@ -398,9 +414,9 @@ public partial class MainWindow : Window
 
         bool changed = Math.Abs(slider.Value - _mixerEditStartValue) > 0.0001;
         if (changed)
-            _vm.CommitHistory();
+            _vm?.CommitHistory();
         else
-            _vm.CancelHistory();
+            _vm?.CancelHistory();
 
         _mixerEditSlider = null;
         _mixerHistoryOpen = false;
